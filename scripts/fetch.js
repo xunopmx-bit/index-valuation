@@ -147,15 +147,14 @@ async function fetchFundPrices(indexes) {
             const name = parts[1];
             const nowPrice = parseFloat(parts[3]);
             const prevClose = parseFloat(parts[4]);
-            // 开盘前/盘后取最新收盘价或前收盘价
-            const finalPrice = nowPrice > 0 ? nowPrice : prevClose;
             const dateRaw = parts[30] || '';
-            if (!isNaN(finalPrice) && finalPrice > 0) {
+            if (!isNaN(nowPrice)) {
               prices[rawCode] = {
-                price: Number(finalPrice.toFixed(4)),
+                nowPrice,
+                prevClose: isNaN(prevClose) ? null : prevClose,
                 name,
                 type: '场内',
-                date: dateRaw ? dateRaw.slice(0, 8) : null,
+                date: dateRaw ? dateRaw.slice(0, 8) : null, // YYYYMMDD
               };
             }
           }
@@ -183,12 +182,14 @@ async function fetchFundPrices(indexes) {
           const parts = m[2].split(',');
           if (parts.length >= 5) {
             const nav = parseFloat(parts[1]);
+            const prevClose = parseFloat(parts[3]); // 上日净值
             if (!isNaN(nav) && nav > 0) {
               prices['f_' + fcode] = {
-                price: Number(nav.toFixed(4)),
+                nowPrice: nav,
+                prevClose: isNaN(prevClose) ? null : prevClose,
                 name: parts[0],
                 type: '场外',
-                date: parts[4] || null,
+                date: parts[4] ? parts[4].replace(/-/g, '') : null, // YYYYMMDD
               };
             }
           }
@@ -244,6 +245,8 @@ async function main() {
   const dateStr = beijingDateStr(now);
   // 蛋卷估值 date 形如 "08-17"，归档按抓取日（北京）区分
   const dataDate = items[0]?.date ?? '';
+  const valuationYear = now.getFullYear();
+  const targetDateIntStr = `${valuationYear}${dataDate.replace('-', '')}`; // e.g. "20260817"
 
   const byCode = new Map(items.map((i) => [i.index_code, i]));
   const market = marketStar(items, config.starBenchmark);
@@ -270,6 +273,27 @@ async function main() {
       priceCode = cfg.fundFcode;
     }
 
+    let closePrice = null;
+    let priceDate = null;
+    if (fundPriceInfo) {
+      const pDate = fundPriceInfo.date; // YYYYMMDD
+      if (pDate === targetDateIntStr) {
+        closePrice = fundPriceInfo.nowPrice;
+        priceDate = pDate;
+      } else if (pDate > targetDateIntStr) {
+        closePrice = fundPriceInfo.prevClose ?? fundPriceInfo.nowPrice;
+        priceDate = targetDateIntStr;
+      } else {
+        closePrice = fundPriceInfo.nowPrice;
+        priceDate = pDate;
+      }
+    }
+
+    let formattedPriceDate = null;
+    if (priceDate) {
+      formattedPriceDate = `${priceDate.slice(0, 4)}-${priceDate.slice(4, 6)}-${priceDate.slice(6, 8)}`;
+    }
+
     results.push({
       index_code: cfg.index_code,
       name: cfg.name,
@@ -278,10 +302,10 @@ async function main() {
       hold: !!cfg.hold,
       fundCode: cfg.fundCode || null, // 场内基金代码
       fundFcode: cfg.fundFcode || null, // 场外基金代码
-      closePrice: fundPriceInfo?.price ?? null, // 前日/最新收盘价格或单位净值
+      closePrice: closePrice ? Number(closePrice.toFixed(4)) : null, // 严格对齐估值日期的价格
       priceType: fundPriceInfo ? priceType : null,
       priceCode: fundPriceInfo ? priceCode : null,
-      priceDate: fundPriceInfo?.date ?? null,
+      priceDate: formattedPriceDate,
       pe: raw?.pe ?? null,
       pb: raw?.pb ?? null,
       ep: ep ? Number(ep.toFixed(4)) : null,
