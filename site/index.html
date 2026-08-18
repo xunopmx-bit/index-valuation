@@ -108,6 +108,11 @@
   .ep-hi { color: var(--green); font-weight: 700; }
   .missing { color: var(--muted); font-style: italic; }
   .suffix { font-size: 11px; color: var(--muted); }
+  .nav-val { font-weight: 600; font-family: ui-monospace, monospace, sans-serif; }
+  .price-type-tag {
+    font-size: 10px; padding: 0px 4px; border-radius: 3px; margin-left: 4px;
+    background: #f1f5f9; color: var(--muted); font-weight: normal; vertical-align: 1px;
+  }
   .strategy-card {
     background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
     padding: 14px 16px; margin: 16px 0 24px 0; font-size: 13px; line-height: 1.6; color: var(--text);
@@ -322,7 +327,7 @@ function renderContent() {
         <div class="table-wrap"><table>
           <thead><tr>
             <th>指数</th>
-            <th>方法</th>
+            <th>前日收盘净值</th>
             ${isEP ? '<th>盈利收益率</th><th>PE</th>' : '<th>PE</th>'}
             ${isPB ? '' : '<th>PB</th>'}
             <th>股息率</th><th>ROE</th>
@@ -340,10 +345,13 @@ function renderContent() {
           ? `<span class="${i.epAdj >= epBuy ? 'ep-hi' : ''}" title="调整后盈利收益率（港股打9折）">${(i.epAdj * 100).toFixed(2)}%${i.epAdj >= epBuy ? ' ✓' : ''}</span>`
           : '-';
         const colorName = { green: '低估', yellow: '正常', red: '高估', gray: '无数据' }[i.color] || i.color;
+        const navHtml = i.closePrice != null
+          ? `<span class="nav-val" title="${i.priceType || '场内'}: ${i.priceCode || '-'} (更新: ${i.priceDate || '-'})">${Number(i.closePrice).toFixed(4)}</span><span class="price-type-tag">${i.priceType || '场内'}</span>`
+          : '<span class="missing">-</span>';
 
         html += `<tr${cls}>
           <td><span class="index-name">${i.name}</span>${badge}</td>
-          <td>${methodCell(i.method)}</td>
+          <td>${navHtml}</td>
           ${isEP ? `<td>${epHtml}</td><td>${i.pe != null ? i.pe.toFixed(2) : '-'}</td>` : `<td>${i.pe != null ? i.pe.toFixed(2) : '-'}</td>`}
           ${isPB ? '' : `<td>${i.pb != null ? i.pb.toFixed(2) : '-'}</td>`}
           <td>${i.yield != null ? (i.yield * 100).toFixed(2) + '%' : '-'}</td>
