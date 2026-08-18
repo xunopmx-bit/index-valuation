@@ -62,13 +62,13 @@
     display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;
     align-items: center;
   }
-  .toolbar button {
-    padding: 6px 14px; border: 1px solid var(--border);
-    border-radius: 8px; background: #fff; font-size: 13px;
-    cursor: pointer; color: var(--text);
-  }
+  .toolbar button { padding: 6px 14px; border: 1px solid var(--border); border-radius: 8px; background: #fff; font-size: 13px; cursor: pointer; color: var(--text); }
   .toolbar button.active { background: #111827; color: #fff; border-color: #111827; }
   .toolbar .count { font-size: 12px; color: var(--muted); }
+  .date-select {
+    padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 13px; background: #fff; color: var(--text); cursor: pointer;
+  }
   .section { margin-bottom: 24px; }
   .section-title {
     font-size: 15px; font-weight: 700;
@@ -140,16 +140,42 @@
 </main>
 <footer id="footer"></footer>
 <script>
-const state = { filter: 'all', data: null };
+const state = { filter: 'all', data: null, dates: null, selectedDate: null };
 
 async function load() {
   try {
-    const res = await fetch('data/valuations.json', { cache: 'no-store' });
+    // 并行加载最新数据 + 历史日期索引
+    const [res, resIdx] = await Promise.all([
+      fetch('data/valuations.json', { cache: 'no-store' }),
+      fetch('data/history/index.json', { cache: 'no-store' }).catch(() => null),
+    ]);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     state.data = await res.json();
+    if (resIdx && resIdx.ok) {
+      const idx = await resIdx.json();
+      state.dates = idx.dates || [];
+      state.selectedDate = state.dates.length ? state.dates[state.dates.length - 1] : null;
+    } else {
+      state.dates = [state.data.date];
+      state.selectedDate = state.data.date;
+    }
     render();
   } catch (e) {
     document.getElementById('meta').textContent = '数据加载失败: ' + e.message;
+  }
+}
+
+// 切换历史日期：加载对应快照
+async function selectDate(dateStr) {
+  if (!dateStr) return;
+  try {
+    const res = await fetch(`data/history/${dateStr}.json`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    state.data = await res.json();
+    state.selectedDate = dateStr;
+    render();
+  } catch (e) {
+    document.getElementById('meta').textContent = '历史数据加载失败: ' + e.message;
   }
 }
 
@@ -177,7 +203,8 @@ function percentileHtml(p) {
 function renderMeta() {
   const d = state.data;
   const meta = document.getElementById('meta');
-  meta.innerHTML = `数据日期：<b>${d.date}</b>（蛋卷基金）· 生成时间：${new Date(d.generated_at).toLocaleString('zh-CN')} · 共 ${d.indexes.length} 个指数 · 更新频率：每日`;
+  const isHist = state.selectedDate && state.selectedDate !== (state.dates ? state.dates[state.dates.length - 1] : d.date);
+  meta.innerHTML = `数据日期：<b>${d.dataDate || d.date}</b>（蛋卷基金）· 归档：${d.date}${isHist ? ' · <b style="color:var(--yellow)">历史回溯</b>' : ''} · 生成时间：${new Date(d.generated_at).toLocaleString('zh-CN')} · 共 ${d.indexes.length} 个指数 · 更新频率：每日`;
 
   const star = d.market.star;
   const circle = document.getElementById('starCircle');
@@ -205,9 +232,16 @@ function renderToolbar() {
     ['yellow', '正常(黄)'],
     ['red', '高估(红)'],
   ];
-  toolbar.innerHTML = filters.map(([k, label]) =>
-    `<button class="${state.filter === k ? 'active' : ''}" onclick="setFilter('${k}')">${label}</button>`
-  ).join('') + `<span class="count">持仓 ${holds.length} 只</span>`;
+  const dateOpts = (state.dates || [])
+    .slice()
+    .reverse()
+    .map(dt => `<option value="${dt}"${dt === state.selectedDate ? ' selected' : ''}>${dt}${dt === (state.dates ? state.dates[state.dates.length - 1] : '') ? '（最新）' : ''}</option>`)
+    .join('');
+  toolbar.innerHTML =
+    `<select class="date-select" onchange="selectDate(this.value)" title="选择历史日期回溯"><option value="">选择日期...</option>${dateOpts}</select>` +
+    filters.map(([k, label]) =>
+      `<button class="${state.filter === k ? 'active' : ''}" onclick="setFilter('${k}')">${label}</button>`
+    ).join('') + `<span class="count">持仓 ${holds.length} 只</span>`;
 }
 
 function setFilter(f) {

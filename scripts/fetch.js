@@ -9,6 +9,9 @@ const config = require('./config');
 const DANJUAN_API = 'https://danjuanfunds.com/djapi/index_eva/dj';
 const OUT_DIR = path.join(__dirname, '..', 'site', 'data');
 const OUT_FILE = path.join(OUT_DIR, 'valuations.json');
+const HIST_DIR = path.join(OUT_DIR, 'history');
+const HIST_INDEX = path.join(HIST_DIR, 'index.json');
+const MAX_DAYS = 365; // 保留最近365天历史
 
 async function fetchDanjuan() {
   const res = await fetch(DANJUAN_API, {
@@ -103,10 +106,51 @@ function epOf(pe) {
   return 1 / pe;
 }
 
+// 北京时间日期字符串（UTC+8），用于历史归档与展示
+function beijingDateStr(d) {
+  const bj = new Date(d.getTime() + 8 * 3600 * 1000);
+  return bj.toISOString().slice(0, 10);
+}
+
+// 读取或初始化历史索引
+function readHistoryIndex() {
+  if (!fs.existsSync(HIST_INDEX)) return { dates: [] };
+  try {
+    return JSON.parse(fs.readFileSync(HIST_INDEX, 'utf-8'));
+  } catch {
+    return { dates: [] };
+  }
+}
+
+// 写入当天历史快照，并清理超过365天的旧数据
+function saveHistory(dateStr, output) {
+  if (!fs.existsSync(HIST_DIR)) fs.mkdirSync(HIST_DIR, { recursive: true });
+  const index = readHistoryIndex();
+  const { dates } = index;
+
+  // 若当天快照已存在则覆盖（同一天重跑）
+  if (!dates.includes(dateStr)) dates.push(dateStr);
+  dates.sort(); // 升序
+
+  // 写入当天快照（快照内 date 字段保持原始估值日期）
+  fs.writeFileSync(path.join(HIST_DIR, `${dateStr}.json`), JSON.stringify(output, null, 2), 'utf-8');
+
+  // 清理超出365天的旧快照
+  while (dates.length > MAX_DAYS) {
+    const old = dates.shift();
+    try { fs.unlinkSync(path.join(HIST_DIR, `${old}.json`)); } catch {}
+  }
+
+  fs.writeFileSync(HIST_INDEX, JSON.stringify({ dates }, null, 2), 'utf-8');
+  console.log(`   历史快照: ${HIST_DIR}\\${dateStr}.json（共 ${dates.length} 天，上限 ${MAX_DAYS} 天）`);
+}
+
 async function main() {
   const items = await fetchDanjuan();
   const now = new Date();
-  const dateStr = now.toISOString().slice(0, 10);
+  const dateStr = beijingDateStr(now);
+  // 蛋卷估值 date 形如 "08-17"，归档按抓取日（北京）区分
+  const dataDate = items[0]?.date ?? '';
 
   const byCode = new Map(items.map((i) => [i.index_code, i]));
   const market = marketStar(items, config.starBenchmark);
@@ -159,7 +203,8 @@ async function main() {
 
   const output = {
     generated_at: now.toISOString(),
-    date: dateStr,
+    date: dateStr,           // 归档日期（北京时间抓取日）
+    dataDate,                // 原始估值日期（蛋卷，如 "08-17"）
     source: 'danjuanfunds.com/djapi/index_eva/dj',
     market: {
       star: market?.star ?? null,
@@ -179,8 +224,9 @@ async function main() {
 
   if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
   fs.writeFileSync(OUT_FILE, JSON.stringify(output, null, 2), 'utf-8');
+  saveHistory(dateStr, output);
   console.log(`✅ 已生成 ${OUT_FILE}`);
-  console.log(`   指数数: ${results.length}，整体星级: ${market?.star ?? '-'}，更新日期: ${dateStr}`);
+  console.log(`   指数数: ${results.length}，整体星级: ${market?.star ?? '-'}，归档日期: ${dateStr}，估值日期: ${dataDate || '-'}`);
 }
 
 main().catch((e) => {
