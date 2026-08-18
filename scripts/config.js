@@ -10,8 +10,8 @@ module.exports = {
     { index_code: "SH000015", method: "EP", section: "盈利收益率法", hold: true, name: "上证红利", fundCode: "510880", fundFcode: "012761" },
     { index_code: "SH000925", method: "EP", section: "盈利收益率法", name: "基本面50", fundCode: "512750", fundFcode: "160716" },
     { index_code: "SH000170", method: "EP", section: "盈利收益率法", hold: true, name: "50AH优选", fundCode: "501050", fundFcode: "501050" },
-    { index_code: "HKHSCEI", method: "EP", section: "盈利收益率法", hold: true, name: "H股指数", fundCode: "510900", fundFcode: "110031" },
-    { index_code: "HKHSI", method: "EP", section: "盈利收益率法", name: "恒生指数", fundCode: "159920", fundFcode: "000071" },
+    { index_code: "HKHSCEI", method: "EP", section: "盈利收益率法", hold: true, name: "H股指数", fundCode: "510900", fundFcode: "110031", epDiscount: 0.9 },
+    { index_code: "HKHSI", method: "EP", section: "盈利收益率法", name: "恒生指数", fundCode: "159920", fundFcode: "000071", epDiscount: 0.9 },
     { index_code: "SH000016", method: "EP", section: "盈利收益率法", name: "上证50", fundCode: "510100", fundFcode: "110003" },
     { index_code: "SZ399550", method: "EP", section: "盈利收益率法", name: "央视50", fundCode: "159965", fundFcode: "217027" },
     { index_code: "SH000010", method: "EP", section: "盈利收益率法", name: "上证180", fundCode: "510180", fundFcode: "040180" },
@@ -85,11 +85,15 @@ module.exports = {
   // 蛋卷无中证800，用 沪深300 + 中证500 等权近似
   starBenchmark: ["SH000300", "SH000905"],
 
-  // 红黄绿阈值（按历史百分位）
+  // 红黄绿阈值（按历史百分位，适用于 PE/PB 方法）
   colorThreshold: { low: 0.2, high: 0.8 },
 
-  // 盈利收益率法买入线
-  epBuyLine: 0.10,
+  // 盈利收益率法（EP）绝对阈值（格雷厄姆法标准，来源于《指数基金投资指南》）
+  // EP > 10% → 低估可投(绿)；6.4% ~ 10% → 持有(黄)；< 6.4% → 卖出(红)
+  epThreshold: { buy: 0.10, sell: 0.064 },
+
+  // 港股指数盈利收益率折扣（港股通分红税+换汇费用侵蚀收益，参考值9折）
+  epDiscount: 0.9,
 
   // 强周期单品种仓位上限
   pbSingleLimit: 0.10,

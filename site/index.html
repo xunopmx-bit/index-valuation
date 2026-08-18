@@ -242,9 +242,9 @@ function renderContent() {
   }
 
   const sectionHints = {
-    '盈利收益率法': '盈利稳定品种 · 盈利收益率 >10% 可投',
-    '市盈率法': '盈利快速成长/宽基/消费医药 · 估值底部适合投资',
-    '市净率法': '强周期/重资产行业 · 低估可投 · 单品种 <总资产10%',
+    '盈利收益率法': '盈利稳定品种 · EP>10%低估可投 / 6.4%~10%持有 / <6.4%卖出 · 港股打9折',
+    '市盈率法': '盈利快速成长/宽基/消费医药 · 看PE历史百分位 · 低位可投',
+    '市净率法': '强周期/重资产行业 · 看PB历史百分位 · 低估可投 · 单品种<总资产10%',
     '海外市场': '海外指数 · 市盈率法',
   };
 
@@ -276,8 +276,9 @@ function renderContent() {
       const cls = i.hold ? ' class="hold-row"' : '';
       const badge = i.hold ? '<span class="hold-badge">持仓</span>' : '';
       const pct = i.percentile != null ? Math.round(i.percentile * 100) + '%' : '-';
-      const epHtml = i.ep != null
-        ? `<span class="${i.ep >= 0.10 ? 'ep-hi' : ''}">${(i.ep * 100).toFixed(2)}%${i.ep >= 0.10 ? ' ✓' : ''}</span>`
+      const epBuy = d.thresholds.buy || 0.10;
+      const epHtml = i.epAdj != null
+        ? `<span class="${i.epAdj >= epBuy ? 'ep-hi' : ''}" title="调整后盈利收益率（港股打9折）">${(i.epAdj * 100).toFixed(2)}%${i.epAdj >= epBuy ? ' ✓' : ''}</span>`
         : '-';
       const colorName = { green: '低估', yellow: '正常', red: '高估', gray: '无数据' }[i.color] || i.color;
 

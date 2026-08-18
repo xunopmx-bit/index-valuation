@@ -25,22 +25,50 @@ async function fetchDanjuan() {
   return json.data.items;
 }
 
-// 各估值方法对应的判断指标
-// EP法（盈利稳定/红利类）：盈利波动大，PE不可靠，参考PB百分位
+// 各估值方法对应的判断指标百分位
+// EP法（盈利稳定/红利类）：本质是看盈利收益率=1/PE，用 PE 百分位反映贵贱
 // PE法（宽基/消费/医药）：参考PE百分位
 // PB法（强周期/重资产）：参考PB百分位
 function methodPercentile(item, method) {
-  if (method === 'PE') return item.pe_percentile;
-  return item.pb_percentile; // EP 与 PB 方法均用 PB 百分位
+  if (method === 'PB') return item.pb_percentile;
+  return item.pe_percentile; // EP 与 PE 方法均用 PE 百分位
 }
 
-// 红黄绿判断：按指数方法取对应指标的百分位
-function judgeColor(item, method) {
+// 盈利收益率 = 1/PE，港股指数打9折（港股通分红税+换汇费用侵蚀收益）
+function adjustedEp(item, cfg) {
+  const ep = epOf(item?.pe);
+  if (ep == null) return null;
+  const discount = cfg?.epDiscount ?? 1;
+  return ep * discount;
+}
+
+// 红黄绿判断：EP 法用绝对阈值，PE/PB 法用历史百分位阈值
+function judgeColor(item, method, cfg) {
+  if (method === 'EP') {
+    const ep = adjustedEp(item, cfg);
+    if (ep == null) return 'gray';
+    const { buy, sell } = config.epThreshold;
+    if (ep > buy) return 'green';          // 盈利收益率 >10% → 低估可投
+    if (ep < sell) return 'red';           // 盈利收益率 <6.4% → 高估卖出
+    return 'yellow';                        // 6.4%~10% → 持有
+  }
   const p = methodPercentile(item, method);
+  if (p == null) return 'gray';
   const { low, high } = config.colorThreshold;
   if (p < low) return 'green';        // 低估
   if (p > high) return 'red';         // 高估
   return 'yellow';                     // 正常
+}
+
+// 板块内排序：优先绿、黄、红，其次星级降序（越高越值得投）
+function sortSection(items) {
+  const colorRank = { green: 0, yellow: 1, red: 2, gray: 3 };
+  return [...items].sort((a, b) => {
+    const ra = colorRank[a.color] ?? 3;
+    const rb = colorRank[b.color] ?? 3;
+    if (ra !== rb) return ra - rb;
+    return (b.star ?? 0) - (a.star ?? 0);
+  });
 }
 
 // 星级评分：基于历史百分位映射到 1~5 星（半星粒度）
@@ -90,9 +118,10 @@ async function main() {
     const percentile = raw
       ? methodPercentile(raw, method)
       : null;
-    const color = raw ? judgeColor(raw, method) : 'gray';
+    const color = raw ? judgeColor(raw, method, cfg) : 'gray';
     const star = raw ? starFromPercentile(percentile) : null;
-    const ep = raw ? epOf(raw.pe) : null;
+    const ep = epOf(raw?.pe);
+    const epAdj = adjustedEp(raw, cfg);
 
     results.push({
       index_code: cfg.index_code,
@@ -105,6 +134,7 @@ async function main() {
       pe: raw?.pe ?? null,
       pb: raw?.pb ?? null,
       ep: ep ? Number(ep.toFixed(4)) : null,
+      epAdj: epAdj ? Number(epAdj.toFixed(4)) : null, // 调整后盈利收益率（港股打9折）
       roe: raw?.roe ?? null,
       yield: raw?.yeild ?? null, // 股息率
       pe_percentile: raw?.pe_percentile ?? null,
@@ -121,6 +151,12 @@ async function main() {
   const sectionOrder = [];
   for (const r of results) if (!sectionOrder.includes(r.section)) sectionOrder.push(r.section);
 
+  // 每个板块内按 绿→黄→红 优先、其次星级降序 排序（每天随数据动态变动）
+  const sorted = [];
+  for (const sec of sectionOrder) {
+    sorted.push(...sortSection(results.filter((r) => r.section === sec)));
+  }
+
   const output = {
     generated_at: now.toISOString(),
     date: dateStr,
@@ -130,9 +166,9 @@ async function main() {
       avgPercentile: market?.avgPercentile ?? null,
       benchmark: config.starBenchmark,
     },
-    thresholds: config.colorThreshold,
+    thresholds: { ...config.colorThreshold, ...config.epThreshold },
     sections: sectionOrder,
-    indexes: results,
+    indexes: sorted,
     invest: {
       monthly: config.investFormula.amount,
       formula: '应投金额 = 上月实际投入 × (上期便宜度 / 当期便宜度)²',
