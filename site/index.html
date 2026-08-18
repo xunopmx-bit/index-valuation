@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>指数估值定投看板</title>
+<style>
+  :root {
+    --green: #16a34a;
+    --green-bg: #dcfce7;
+    --yellow: #d97706;
+    --yellow-bg: #fef9c3;
+    --red: #dc2626;
+    --red-bg: #fee2e2;
+    --gray: #6b7280;
+    --gray-bg: #f3f4f6;
+    --border: #e5e7eb;
+    --text: #111827;
+    --muted: #6b7280;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f9fafb;
+    color: var(--text);
+    padding-bottom: 40px;
+  }
+  header {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 16px 16px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .header-inner { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 18px; font-weight: 700; }
+  .meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .star-banner {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .star-circle {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    color: #fff; font-weight: 700;
+  }
+  .star-circle .num { font-size: 26px; line-height: 1; }
+  .star-circle .label { font-size: 10px; opacity: .9; }
+  .star-text { font-size: 13px; }
+  .star-text strong { font-size: 15px; }
+  .legend { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .legend span { display: inline-block; margin-right: 12px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+  main { max-width: 1000px; margin: 0 auto; padding: 16px; }
+  .toolbar {
+    display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;
+    align-items: center;
+  }
+  .toolbar button {
+    padding: 6px 14px; border: 1px solid var(--border);
+    border-radius: 8px; background: #fff; font-size: 13px;
+    cursor: pointer; color: var(--text);
+  }
+  .toolbar button.active { background: #111827; color: #fff; border-color: #111827; }
+  .toolbar .count { font-size: 12px; color: var(--muted); }
+  .section { margin-bottom: 24px; }
+  .section-title {
+    font-size: 15px; font-weight: 700;
+    padding: 10px 14px; background: #111827; color: #fff;
+    border-radius: 8px 8px 0 0;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .section-title .hint { font-size: 11px; font-weight: 400; opacity: .85; }
+  .table-wrap { overflow-x: auto; background: #fff; border: 1px solid var(--border); border-radius: 0 0 8px 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px; }
+  th, td { padding: 8px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid #f3f4f6; }
+  th:first-child, td:first-child { text-align: left; }
+  th { background: #f9fafb; color: var(--muted); font-weight: 600; font-size: 12px; position: sticky; top: 0; }
+  tr:last-child td { border-bottom: none; }
+  tr.hold-row { background: #fffbeb; }
+  tr.hold-row td:first-child { box-shadow: inset 3px 0 0 var(--yellow); }
+  .index-name { font-weight: 600; }
+  .hold-badge {
+    display: inline-block; font-size: 10px; background: var(--yellow);
+    color: #fff; border-radius: 4px; padding: 1px 5px; margin-left: 6px;
+    vertical-align: 1px;
+  }
+  .color-badge {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; min-width: 56px; text-align: center;
+  }
+  .color-green { background: var(--green-bg); color: var(--green); }
+  .color-yellow { background: var(--yellow-bg); color: var(--yellow); }
+  .color-red { background: var(--red-bg); color: var(--red); }
+  .color-gray { background: var(--gray-bg); color: var(--gray); }
+  .star { font-weight: 700; }
+  .star-hi { color: var(--green); }
+  .star-mid { color: var(--yellow); }
+  .star-lo { color: var(--red); }
+  .percentile-bar { position: relative; width: 80px; height: 6px; background: #e5e7eb; border-radius: 3px; display: inline-block; vertical-align: middle; margin-left: 6px; }
+  .percentile-fill { position: absolute; height: 100%; border-radius: 3px; }
+  .ep-hi { color: var(--green); font-weight: 700; }
+  .missing { color: var(--muted); font-style: italic; }
+  .suffix { font-size: 11px; color: var(--muted); }
+  footer { max-width: 1000px; margin: 0 auto; padding: 0 16px; font-size: 11px; color: var(--muted); line-height: 1.8; }
+  footer h3 { font-size: 12px; color: var(--text); margin: 12px 0 4px; }
+  @media (max-width: 640px) {
+    h1 { font-size: 16px; }
+    .star-circle { width: 54px; height: 54px; }
+    .star-circle .num { font-size: 22px; }
+    table { min-width: 580px; }
+    th, td { padding: 7px 8px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <h1>指数估值定投看板</h1>
+    <div class="meta" id="meta">加载中...</div>
+    <div class="star-banner">
+      <div class="star-circle" id="starCircle" style="background:#6b7280">
+        <span class="num" id="starNum">-</span>
+        <span class="label">市场星级</span>
+      </div>
+      <div class="star-text" id="starText">加载中...</div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </div>
+</header>
+<main>
+  <div class="toolbar" id="toolbar"></div>
+  <div id="content"></div>
+</main>
+<footer id="footer"></footer>
+<script>
+const state = { filter: 'all', data: null };
+
+async function load() {
+  try {
+    const res = await fetch('data/valuations.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    state.data = await res.json();
+    render();
+  } catch (e) {
+    document.getElementById('meta').textContent = '数据加载失败: ' + e.message;
+  }
+}
+
+function starColor(star) {
+  if (star >= 4) return 'var(--green)';
+  if (star >= 2.5) return 'var(--yellow)';
+  return 'var(--red)';
+}
+function starText(star) {
+  if (star == null) return '无数据';
+  if (star >= 4.5) return '极度低估，投资价值高';
+  if (star >= 3.5) return '低估，适合定投';
+  if (star >= 2.5) return '正常估值，持有或暂停定投';
+  if (star >= 1.5) return '偏高估，注意风险';
+  return '高估/泡沫阶段，分批止盈';
+}
+
+function percentileHtml(p) {
+  if (p == null) return '<span class="missing">-</span>';
+  const fill = p * 100;
+  const color = fill < 20 ? 'var(--green)' : fill > 80 ? 'var(--red)' : 'var(--yellow)';
+  return `${(fill * 100).toFixed(1).slice(0,1)}`.length ? (Math.round(fill) + '%') : '';
+}
+
+function renderMeta() {
+  const d = state.data;
+  const meta = document.getElementById('meta');
+  meta.innerHTML = `数据日期：<b>${d.date}</b>（蛋卷基金）· 生成时间：${new Date(d.generated_at).toLocaleString('zh-CN')} · 共 ${d.indexes.length} 个指数 · 更新频率：每日`;
+
+  const star = d.market.star;
+  const circle = document.getElementById('starCircle');
+  circle.style.background = starColor(star);
+  document.getElementById('starNum').textContent = star == null ? '-' : star;
+  document.getElementById('starText').innerHTML =
+    `整体市场：<strong style="color:${starColor(star)}">${star == null ? '-' : star + ' 星'}</strong>（基准百分位 ${(d.market.avgPercentile * 100).toFixed(1)}%）<br>` +
+    starText(star) + '（基准：沪深300 + 中证500）';
+
+  const legend = document.getElementById('legend');
+  legend.innerHTML =
+    `<span><span class="dot" style="background:var(--green)"></span>低估 <20% · 适合定投</span>` +
+    `<span><span class="dot" style="background:var(--yellow)"></span>正常 20-80% · 持有/暂停</span>` +
+    `<span><span class="dot" style="background:var(--red)"></span>高估 >80% · 止盈</span>`;
+}
+
+function renderToolbar() {
+  const d = state.data;
+  const holds = d.indexes.filter(i => i.hold);
+  const toolbar = document.getElementById('toolbar');
+  const filters = [
+    ['all', '全部'],
+    ['hold', '我的持仓'],
+    ['green', '低估(绿)'],
+    ['yellow', '正常(黄)'],
+    ['red', '高估(红)'],
+  ];
+  toolbar.innerHTML = filters.map(([k, label]) =>
+    `<button class="${state.filter === k ? 'active' : ''}" onclick="setFilter('${k}')">${label}</button>`
+  ).join('') + `<span class="count">持仓 ${holds.length} 只</span>`;
+}
+
+function setFilter(f) {
+  state.filter = f;
+  renderToolbar();
+  renderContent();
+}
+
+function methodCell(method) {
+  const label = { EP: '盈利收益率', PE: '市盈率', PB: '市净率' }[method] || method;
+  return label;
+}
+
+function renderContent() {
+  const d = state.data;
+  const content = document.getElementById('content');
+  const filters = state.filter;
+
+  const visible = d.indexes.filter(i => {
+    if (filters === 'hold') return i.hold;
+    if (filters === 'green') return i.color === 'green';
+    if (filters === 'yellow') return i.color === 'yellow';
+    if (filters === 'red') return i.color === 'red';
+    return true;
+  });
+
+  // 按板块分组
+  const groups = {};
+  for (const i of visible) {
+    if (!groups[i.section]) groups[i.section] = [];
+    groups[i.section].push(i);
+  }
+
+  const sectionHints = {
+    '盈利收益率法': '盈利稳定品种 · 盈利收益率 >10% 可投',
+    '市盈率法': '盈利快速成长/宽基/消费医药 · 估值底部适合投资',
+    '市净率法': '强周期/重资产行业 · 低估可投 · 单品种 <总资产10%',
+    '海外市场': '海外指数 · 市盈率法',
+  };
+
+  let html = '';
+  for (const sec of d.sections) {
+    const items = groups[sec];
+    if (!items || !items.length) continue;
+
+    const hint = sectionHints[sec] || '';
+    // EP 板块展示盈利收益率列，PB 板块展示市净率列
+    const isEP = sec === '盈利收益率法';
+    const isPB = sec === '市净率法';
+
+    html += `<div class="section">
+      <div class="section-title">${sec} <span class="hint">${hint}</span></div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>指数</th>
+          <th>方法</th>
+          ${isEP ? '<th>盈利收益率</th><th>PE</th>' : '<th>PE</th>'}
+          ${isPB ? '' : '<th>PB</th>'}
+          <th>股息率</th><th>ROE</th>
+          <th>百分位</th>
+          <th>状态</th><th>星级</th>
+          <th>场内</th><th>场外</th>
+        </tr></thead><tbody>`;
+
+    for (const i of items) {
+      const cls = i.hold ? ' class="hold-row"' : '';
+      const badge = i.hold ? '<span class="hold-badge">持仓</span>' : '';
+      const pct = i.percentile != null ? Math.round(i.percentile * 100) + '%' : '-';
+      const epHtml = i.ep != null
+        ? `<span class="${i.ep >= 0.10 ? 'ep-hi' : ''}">${(i.ep * 100).toFixed(2)}%${i.ep >= 0.10 ? ' ✓' : ''}</span>`
+        : '-';
+      const colorName = { green: '低估', yellow: '正常', red: '高估', gray: '无数据' }[i.color] || i.color;
+
+      html += `<tr${cls}>
+        <td><span class="index-name">${i.name}</span>${badge}</td>
+        <td>${methodCell(i.method)}</td>
+        ${isEP ? `<td>${epHtml}</td><td>${i.pe != null ? i.pe.toFixed(2) : '-'}</td>` : `<td>${i.pe != null ? i.pe.toFixed(2) : '-'}</td>`}
+        ${isPB ? '' : `<td>${i.pb != null ? i.pb.toFixed(2) : '-'}</td>`}
+        <td>${i.yield != null ? (i.yield * 100).toFixed(2) + '%' : '-'}</td>
+        <td>${i.roe != null ? (i.roe * 100).toFixed(1) + '%' : '-'}</td>
+        <td>${pct}</td>
+        <td><span class="color-badge color-${i.color}">${colorName}</span></td>
+        <td class="star" style="color:${starColor(i.star)}">${i.star != null ? i.star : '-'}</td>
+        <td class="suffix">${i.fundCode || '-'}</td>
+        <td class="suffix">${i.fundFcode || '-'}</td>
+      </tr>`;
+    }
+
+    html += `</tbody></table></div></div>`;
+  }
+
+  if (!html) html = '<p style="color:var(--muted);padding:20px">当前筛选无数据</p>';
+  content.innerHTML = html;
+}
+
+function renderFooter() {
+  const d = state.data;
+  const f = document.getElementById('footer');
+  f.innerHTML = `
+    <h3>判断标准</h3>
+    <p>① 盈利收益率法（盈利稳定品种）：盈利收益率 = 1/PE，&gt;10% 可投资</p>
+    <p>② 市盈率法（盈利快速成长/宽基/消费医药）：参考 PE 历史百分位，估值底部适合投资</p>
+    <p>③ 市净率法（强周期/重资产行业）：盈利波动大，参考 PB 百分位，低估可投，单品种控制 &lt;总资产 10%</p>
+    <p>④ 红黄绿：低估 &lt;20%（绿/4-5星）· 正常 20-80%（黄/3星）· 高估 &gt;80%（红/1-2星）</p>
+    <p>⑤ 定投加仓：应投金额 = 上月实际投入 ×（上期便宜度 / 当期便宜度）²</p>
+    <h3>数据来源与免责</h3>
+    <p>估值数据来自 <a href="https://danjuanfunds.com/screw/valuation-table" target="_blank">蛋卷基金估值表</a>（免费每日更新），计算方法复刻「银行螺丝钉」的估值框架，仅作个人投资参考，不构成投资建议。</p>
+  `;
+}
+
+function render() {
+  renderMeta();
+  renderToolbar();
+  renderContent();
+  renderFooter();
+}
+
+load();
+</script>
+</body>
+</html>
