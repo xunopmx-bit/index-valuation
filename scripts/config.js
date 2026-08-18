@@ -76,9 +76,9 @@ module.exports = {
     { index_code: "SPCQVCP", method: "PE", section: "海外市场", name: "标普质量", fundCode: "501069", fundFcode: "501069" },
     { index_code: "HKHSSCNE", method: "PE", section: "海外市场", name: "新经济", fundCode: "501312", fundFcode: "501312" },
     { index_code: "CSIH30094", method: "PE", section: "市盈率法", name: "消费红利", fundCode: "159928", fundFcode: "008928" },
-
-    // ============ 用户标的但数据源缺失（需扩展） ============
-    // 科技100（515580/010202）、生物科技、消费50 —— 蛋卷API无数据，后续补源
+    { index_code: "931139", method: "PE", section: "市盈率法", hold: true, name: "消费50", fundCode: "515650", fundFcode: "014208", source: "csindex" },
+    { index_code: "930743", method: "PE", section: "市盈率法", hold: true, name: "生物科技", fundCode: "159837", fundFcode: "011117", source: "csindex" },
+    { index_code: "931187", method: "PE", section: "市盈率法", hold: true, name: "科技100", fundCode: "515580", fundFcode: "008399", source: "csindex" },
   ],
 
   // ============ 人民币债券估值表（银行螺丝钉专属固收板块） ============

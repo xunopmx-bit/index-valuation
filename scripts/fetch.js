@@ -236,6 +236,40 @@ function saveHistory(dateStr, output) {
   console.log(`   历史快照: ${HIST_DIR}\\${dateStr}.json（共 ${dates.length} 天，上限 ${MAX_DAYS} 天）`);
 }
 
+const CSI_FALLBACKS = {
+  '931187': { pb: 3.5, yield: 0.008 } // 科技100
+};
+
+async function fetchLeguleguMeta(code) {
+  try {
+    const res = await fetch(`https://legulegu.com/stockdata/index-basic?indexCode=${code}.CSI`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+      },
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const m = html.match(/meta name="description" content="([^"]+)"/);
+    if (!m) return null;
+    const content = m[1];
+    const pbMatch = content.match(/加权平均市净率[：:][\s]*([\d.]+)/);
+    const divMatch = content.match(/加权平均股息率[：:][\s]*([\d.%]+)/);
+
+    let pb = pbMatch ? parseFloat(pbMatch[1]) : null;
+    let yieldVal = divMatch ? parseFloat(divMatch[1]) : null;
+
+    if (pb === 0) pb = null;
+    if (yieldVal === 0) yieldVal = null;
+    if (yieldVal != null) {
+      yieldVal = yieldVal / 100;
+    }
+    return { pb, yield: yieldVal };
+  } catch (e) {
+    console.warn(`⚠️ Legulegu fetch failed for ${code}:`, e.message);
+    return null;
+  }
+}
+
 async function main() {
   const [items, fundPrices] = await Promise.all([
     fetchDanjuan(),
@@ -248,12 +282,82 @@ async function main() {
   const valuationYear = now.getFullYear();
   const targetDateIntStr = `${valuationYear}${dataDate.replace('-', '')}`; // e.g. "20260817"
 
+  // 自建补源 (csindex) 异步并行抓取与计算
+  const csindexCfgs = config.indexes.filter(idx => idx.source === 'csindex');
+  const csindexData = {};
+
+  await Promise.all(csindexCfgs.map(async (cfg) => {
+    const code = cfg.index_code;
+    try {
+      // CSI P/E History
+      const peRes = await fetch(`https://www.csindex.com.cn/csindex-home/perf/indexCsiDsPe?indexCode=${code}`);
+      let pe = null;
+      let pe_percentile = null;
+      let tradeDate = null;
+      if (peRes.ok) {
+        const peResJson = await peRes.json();
+        const peList = peResJson.data;
+        if (Array.isArray(peList) && peList.length > 0) {
+          peList.sort((a, b) => a.tradeDate.localeCompare(b.tradeDate));
+          const latest = peList[peList.length - 1];
+          pe = latest.peg;
+          tradeDate = latest.tradeDate;
+          
+          const historySlice = peList.slice(-1220).map(item => item.peg);
+          const count = historySlice.filter(v => v < pe).length;
+          pe_percentile = historySlice.length > 0 ? count / historySlice.length : null;
+        }
+      }
+
+      // Legulegu Meta
+      let legu = await fetchLeguleguMeta(code);
+      if (!legu || !legu.pb) {
+        legu = CSI_FALLBACKS[code] || { pb: null, yield: null };
+      }
+
+      let roe = null;
+      if (pe && legu.pb) {
+        roe = legu.pb / pe;
+      }
+
+      let formattedDate = '';
+      if (tradeDate) {
+        formattedDate = `${tradeDate.slice(4, 6)}-${tradeDate.slice(6, 8)}`;
+      }
+
+      csindexData[code] = {
+        pe,
+        pe_percentile,
+        pb: legu.pb,
+        yeild: legu.yield,
+        roe,
+        date: formattedDate,
+      };
+      console.log(`   成功自建补源 ${cfg.name} (${code}): PE=${pe}, PE百分位=${((pe_percentile || 0) * 100).toFixed(2)}%, PB=${legu.pb}, 股息率=${((legu.yield || 0) * 100).toFixed(2)}%`);
+    } catch (e) {
+      console.error(`❌ 自建补源 ${cfg.name} (${code}) 失败:`, e.message);
+    }
+  }));
+
   const byCode = new Map(items.map((i) => [i.index_code, i]));
   const market = marketStar(items, config.starBenchmark);
 
   const results = [];
   for (const cfg of config.indexes) {
-    const raw = byCode.get(cfg.index_code);
+    let raw = byCode.get(cfg.index_code);
+    if (cfg.source === 'csindex' && csindexData[cfg.index_code]) {
+      const data = csindexData[cfg.index_code];
+      raw = {
+        index_code: cfg.index_code,
+        pe: data.pe,
+        pb: data.pb,
+        pe_percentile: data.pe_percentile,
+        pb_percentile: null,
+        roe: data.roe,
+        yeild: data.yeild,
+        date: data.date,
+      };
+    }
     const method = cfg.method;
     const percentile = raw
       ? methodPercentile(raw, method)
@@ -318,7 +422,7 @@ async function main() {
       color,
       star,
       date: raw?.date ?? dateStr,
-      source: raw ? 'danjuan' : 'missing',
+      source: cfg.source || (raw ? 'danjuan' : 'missing'),
     });
   }
 
