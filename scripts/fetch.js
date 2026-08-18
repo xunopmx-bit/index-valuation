@@ -214,6 +214,8 @@ async function main() {
     thresholds: { ...config.colorThreshold, ...config.epThreshold },
     sections: sectionOrder,
     indexes: sorted,
+    bonds: config.bonds || [],
+    fixedIncomeOther: config.fixedIncomeOther || [],
     invest: {
       monthly: config.investFormula.amount,
       formula: '应投金额 = 上月实际投入 × (上期便宜度 / 当期便宜度)²',

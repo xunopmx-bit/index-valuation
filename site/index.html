@@ -108,6 +108,28 @@
   .ep-hi { color: var(--green); font-weight: 700; }
   .missing { color: var(--muted); font-style: italic; }
   .suffix { font-size: 11px; color: var(--muted); }
+  .strategy-card {
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+    padding: 14px 16px; margin: 16px 0 24px 0; font-size: 13px; line-height: 1.6; color: var(--text);
+  }
+  .strategy-card h4 {
+    margin: 0 0 8px 0; font-size: 14px; color: #0f172a; display: flex; align-items: center; gap: 6px;
+  }
+  .strategy-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 10px;
+  }
+  .strategy-item {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 12px;
+  }
+  .strategy-item strong { color: #1e293b; display: block; margin-bottom: 4px; font-size: 12px; }
+  .strategy-item p { margin: 0; font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .badge-tag {
+    display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 500;
+    background: #f1f5f9; color: #475569;
+  }
+  .badge-tag-blue { background: #e0f2fe; color: #0369a1; }
+  .badge-tag-green { background: #dcfce7; color: #15803d; }
+  .badge-tag-purple { background: #f3e8ff; color: #7e22ce; }
   footer { max-width: 1000px; margin: 0 auto; padding: 0 16px; font-size: 11px; color: var(--muted); line-height: 1.8; }
   footer h3 { font-size: 12px; color: var(--text); margin: 12px 0 4px; }
   @media (max-width: 640px) {
@@ -231,6 +253,7 @@ function renderToolbar() {
     ['green', '低估(绿)'],
     ['yellow', '正常(黄)'],
     ['red', '高估(红)'],
+    ['bond', '债券固收'],
   ];
   const dateOpts = (state.dates || [])
     .slice()
@@ -260,78 +283,174 @@ function renderContent() {
   const content = document.getElementById('content');
   const filters = state.filter;
 
-  const visible = d.indexes.filter(i => {
-    if (filters === 'hold') return i.hold;
-    if (filters === 'green') return i.color === 'green';
-    if (filters === 'yellow') return i.color === 'yellow';
-    if (filters === 'red') return i.color === 'red';
-    return true;
-  });
+  let html = '';
 
-  // 按板块分组
-  const groups = {};
-  for (const i of visible) {
-    if (!groups[i.section]) groups[i.section] = [];
-    groups[i.section].push(i);
+  // 股票板块渲染（当 filter 不是只看 bond 时）
+  if (filters !== 'bond') {
+    const visible = d.indexes.filter(i => {
+      if (filters === 'hold') return i.hold;
+      if (filters === 'green') return i.color === 'green';
+      if (filters === 'yellow') return i.color === 'yellow';
+      if (filters === 'red') return i.color === 'red';
+      return true;
+    });
+
+    // 按板块分组
+    const groups = {};
+    for (const i of visible) {
+      if (!groups[i.section]) groups[i.section] = [];
+      groups[i.section].push(i);
+    }
+
+    const sectionHints = {
+      '盈利收益率法': '盈利稳定品种 · EP>10%低估可投 / 6.4%~10%持有 / <6.4%卖出 · 港股打9折',
+      '市盈率法': '盈利快速成长/宽基/消费医药 · 看PE历史百分位 · 低位可投',
+      '市净率法': '强周期/重资产行业 · 看PB历史百分位 · 低估可投 · 单品种<总资产10%',
+      '海外市场': '海外指数 · 市盈率法',
+    };
+
+    for (const sec of d.sections) {
+      const items = groups[sec];
+      if (!items || !items.length) continue;
+
+      const hint = sectionHints[sec] || '';
+      const isEP = sec === '盈利收益率法';
+      const isPB = sec === '市净率法';
+
+      html += `<div class="section">
+        <div class="section-title">${sec} <span class="hint">${hint}</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr>
+            <th>指数</th>
+            <th>方法</th>
+            ${isEP ? '<th>盈利收益率</th><th>PE</th>' : '<th>PE</th>'}
+            ${isPB ? '' : '<th>PB</th>'}
+            <th>股息率</th><th>ROE</th>
+            <th>百分位</th>
+            <th>状态</th><th>星级</th>
+            <th>场内</th><th>场外</th>
+          </tr></thead><tbody>`;
+
+      for (const i of items) {
+        const cls = i.hold ? ' class="hold-row"' : '';
+        const badge = i.hold ? '<span class="hold-badge">持仓</span>' : '';
+        const pct = i.percentile != null ? Math.round(i.percentile * 100) + '%' : '-';
+        const epBuy = d.thresholds?.buy || 0.10;
+        const epHtml = i.epAdj != null
+          ? `<span class="${i.epAdj >= epBuy ? 'ep-hi' : ''}" title="调整后盈利收益率（港股打9折）">${(i.epAdj * 100).toFixed(2)}%${i.epAdj >= epBuy ? ' ✓' : ''}</span>`
+          : '-';
+        const colorName = { green: '低估', yellow: '正常', red: '高估', gray: '无数据' }[i.color] || i.color;
+
+        html += `<tr${cls}>
+          <td><span class="index-name">${i.name}</span>${badge}</td>
+          <td>${methodCell(i.method)}</td>
+          ${isEP ? `<td>${epHtml}</td><td>${i.pe != null ? i.pe.toFixed(2) : '-'}</td>` : `<td>${i.pe != null ? i.pe.toFixed(2) : '-'}</td>`}
+          ${isPB ? '' : `<td>${i.pb != null ? i.pb.toFixed(2) : '-'}</td>`}
+          <td>${i.yield != null ? (i.yield * 100).toFixed(2) + '%' : '-'}</td>
+          <td>${i.roe != null ? (i.roe * 100).toFixed(1) + '%' : '-'}</td>
+          <td>${pct}</td>
+          <td><span class="color-badge color-${i.color}">${colorName}</span></td>
+          <td class="star" style="color:${starColor(i.star)}">${i.star != null ? i.star : '-'}</td>
+          <td class="suffix">${i.fundCode || '-'}</td>
+          <td class="suffix">${i.fundFcode || '-'}</td>
+        </tr>`;
+      }
+
+      html += `</tbody></table></div></div>`;
+    }
   }
 
-  const sectionHints = {
-    '盈利收益率法': '盈利稳定品种 · EP>10%低估可投 / 6.4%~10%持有 / <6.4%卖出 · 港股打9折',
-    '市盈率法': '盈利快速成长/宽基/消费医药 · 看PE历史百分位 · 低位可投',
-    '市净率法': '强周期/重资产行业 · 看PB历史百分位 · 低估可投 · 单品种<总资产10%',
-    '海外市场': '海外指数 · 市盈率法',
-  };
-
-  let html = '';
-  for (const sec of d.sections) {
-    const items = groups[sec];
-    if (!items || !items.length) continue;
-
-    const hint = sectionHints[sec] || '';
-    // EP 板块展示盈利收益率列，PB 板块展示市净率列
-    const isEP = sec === '盈利收益率法';
-    const isPB = sec === '市净率法';
-
+  // 债券及固定收益板块渲染（当 filter 为 all 或 bond 时）
+  if ((filters === 'all' || filters === 'bond') && d.bonds && d.bonds.length) {
     html += `<div class="section">
-      <div class="section-title">${sec} <span class="hint">${hint}</span></div>
+      <div class="section-title">
+        人民币债券估值表
+        <span class="hint">防御盾牌 · 波动储备 · 股债动态平衡</span>
+      </div>
       <div class="table-wrap"><table>
         <thead><tr>
-          <th>指数</th>
-          <th>方法</th>
-          ${isEP ? '<th>盈利收益率</th><th>PE</th>' : '<th>PE</th>'}
-          ${isPB ? '' : '<th>PB</th>'}
-          <th>股息率</th><th>ROE</th>
-          <th>百分位</th>
-          <th>状态</th><th>星级</th>
-          <th>场内</th><th>场外</th>
+          <th>债券品种</th>
+          <th>定位与策略</th>
+          <th>修正久期</th>
+          <th>到期收益率(YTM)</th>
+          <th>近1年年化</th>
+          <th>近3年年化</th>
+          <th>近5年年化</th>
+          <th>近5年最大回撤</th>
+          <th>场内代码</th>
+          <th>场外代码</th>
         </tr></thead><tbody>`;
 
-    for (const i of items) {
-      const cls = i.hold ? ' class="hold-row"' : '';
-      const badge = i.hold ? '<span class="hold-badge">持仓</span>' : '';
-      const pct = i.percentile != null ? Math.round(i.percentile * 100) + '%' : '-';
-      const epBuy = d.thresholds.buy || 0.10;
-      const epHtml = i.epAdj != null
-        ? `<span class="${i.epAdj >= epBuy ? 'ep-hi' : ''}" title="调整后盈利收益率（港股打9折）">${(i.epAdj * 100).toFixed(2)}%${i.epAdj >= epBuy ? ' ✓' : ''}</span>`
-        : '-';
-      const colorName = { green: '低估', yellow: '正常', red: '高估', gray: '无数据' }[i.color] || i.color;
-
-      html += `<tr${cls}>
-        <td><span class="index-name">${i.name}</span>${badge}</td>
-        <td>${methodCell(i.method)}</td>
-        ${isEP ? `<td>${epHtml}</td><td>${i.pe != null ? i.pe.toFixed(2) : '-'}</td>` : `<td>${i.pe != null ? i.pe.toFixed(2) : '-'}</td>`}
-        ${isPB ? '' : `<td>${i.pb != null ? i.pb.toFixed(2) : '-'}</td>`}
-        <td>${i.yield != null ? (i.yield * 100).toFixed(2) + '%' : '-'}</td>
-        <td>${i.roe != null ? (i.roe * 100).toFixed(1) + '%' : '-'}</td>
-        <td>${pct}</td>
-        <td><span class="color-badge color-${i.color}">${colorName}</span></td>
-        <td class="star" style="color:${starColor(i.star)}">${i.star != null ? i.star : '-'}</td>
-        <td class="suffix">${i.fundCode || '-'}</td>
-        <td class="suffix">${i.fundFcode || '-'}</td>
+    for (const b of d.bonds) {
+      const tagClass = b.duration > 15 ? 'badge-tag-purple' : b.duration > 6 ? 'badge-tag-blue' : 'badge-tag-green';
+      html += `<tr>
+        <td><span class="index-name">${b.name}</span> <span class="badge-tag ${tagClass}">${b.type}</span></td>
+        <td style="text-align:left"><span class="suffix" title="${b.desc}">${b.strategy}</span></td>
+        <td><strong>${b.duration.toFixed(2)}</strong></td>
+        <td>${(b.ytm * 100).toFixed(3)}%</td>
+        <td>${(b.ret1y * 100).toFixed(2)}%</td>
+        <td>${(b.ret3y * 100).toFixed(2)}%</td>
+        <td>${(b.ret5y * 100).toFixed(2)}%</td>
+        <td style="color:var(--red)">${(b.maxDrawdown5y * 100).toFixed(2)}%</td>
+        <td class="suffix">${b.fundCode || '-'}</td>
+        <td class="suffix">${b.fundFcode || '-'}</td>
       </tr>`;
     }
 
     html += `</tbody></table></div></div>`;
+
+    // 固收补充品种（可转债、REITs、货币基金）
+    if (d.fixedIncomeOther && d.fixedIncomeOther.length) {
+      html += `<div class="section">
+        <div class="section-title">
+          固定收益与另类资产补充
+          <span class="hint">可转债 / 海外REITs / 现金管理</span>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr>
+            <th>品种</th>
+            <th>资产类型</th>
+            <th>特性说明</th>
+            <th>场内代码</th>
+            <th>场外代码</th>
+          </tr></thead><tbody>`;
+      for (const item of d.fixedIncomeOther) {
+        html += `<tr>
+          <td><span class="index-name">${item.name}</span></td>
+          <td><span class="badge-tag">${item.type}</span></td>
+          <td style="text-align:left;font-size:12px;color:var(--muted)">${item.desc}</td>
+          <td class="suffix">${item.fundCode || '-'}</td>
+          <td class="suffix">${item.fundFcode || '-'}</td>
+        </tr>`;
+      }
+      html += `</tbody></table></div></div>`;
+    }
+
+    // 股债平衡策略指南卡片
+    html += `
+      <div class="strategy-card">
+        <h4>💡 银行螺丝钉：国债与债券的合理购买逻辑（股债动态平衡）</h4>
+        <p><strong>1. 债券的核心角色：</strong>债券不是为了暴富，而是定投体系中的<strong>“防守盾牌”</strong>与<strong>“加仓弹药库”</strong>。股票便宜时全力定投股票；股票高估时将止盈资金转入债券避险；股票大跌（4-5星）时赎回债券抄底股票。</p>
+        <div class="strategy-grid">
+          <div class="strategy-item">
+            <strong>🌟 4.5 ~ 5.0 星（极度低估）</strong>
+            <p>股 80%~100% · 债 0%~20%<br>全市场极度便宜，赎回债券基金全力进攻加仓股票指数。</p>
+          </div>
+          <div class="strategy-item">
+            <strong>⭐ 3.5 ~ 4.0 星（相对低估）</strong>
+            <p>股 60%~80% · 债 20%~40%<br>正常每月定投股票，部分结余配置中短期国开债/政金债稳健防守。</p>
+          </div>
+          <div class="strategy-item">
+            <strong>⚖️ 2.5 ~ 3.0 星（正常估值）</strong>
+            <p>股 40%~60% · 债 40%~60%<br>股票暂停加码或减少定额，增配债券基金，维持股债平衡。</p>
+          </div>
+          <div class="strategy-item">
+            <strong>⚠️ 1.0 ~ 2.0 星（高估泡沫）</strong>
+            <p>股 0%~20% · 债 80%~100%<br>股票分批止盈卖出，资金全部进入 3-5年政金债或货币基金避险。</p>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   if (!html) html = '<p style="color:var(--muted);padding:20px">当前筛选无数据</p>';
@@ -343,13 +462,14 @@ function renderFooter() {
   const f = document.getElementById('footer');
   f.innerHTML = `
     <h3>判断标准</h3>
-    <p>① 盈利收益率法（盈利稳定品种）：盈利收益率 = 1/PE，&gt;10% 可投资</p>
+    <p>① 盈利收益率法（盈利稳定品种）：盈利收益率 = 1/PE，&gt;10% 可投资（港股打9折）</p>
     <p>② 市盈率法（盈利快速成长/宽基/消费医药）：参考 PE 历史百分位，估值底部适合投资</p>
     <p>③ 市净率法（强周期/重资产行业）：盈利波动大，参考 PB 百分位，低估可投，单品种控制 &lt;总资产 10%</p>
-    <p>④ 红黄绿：低估 &lt;20%（绿/4-5星）· 正常 20-80%（黄/3星）· 高估 &gt;80%（红/1-2星）</p>
-    <p>⑤ 定投加仓：应投金额 = 上月实际投入 ×（上期便宜度 / 当期便宜度）²</p>
+    <p>④ 债券与国债配置：久期越长对利率越敏感、波动越大。日常防守优选 3-5年政金债/中债综合；利率高位下行期可关注长久期国债。</p>
+    <p>⑤ 红黄绿：低估 &lt;20%（绿/4-5星）· 正常 20-80%（黄/3星）· 高估 &gt;80%（红/1-2星）</p>
+    <p>⑥ 定投加仓：应投金额 = 上月实际投入 ×（上期便宜度 / 当期便宜度）²</p>
     <h3>数据来源与免责</h3>
-    <p>估值数据来自 <a href="https://danjuanfunds.com/screw/valuation-table" target="_blank">蛋卷基金估值表</a>（免费每日更新），计算方法复刻「银行螺丝钉」的估值框架，仅作个人投资参考，不构成投资建议。</p>
+    <p>股票指数估值数据来自 <a href="https://danjuanfunds.com/screw/valuation-table" target="_blank">蛋卷基金估值表</a>（免费每日更新），债券数据来自银行螺丝钉人民币债券估值体系，计算方法复刻「银行螺丝钉」的估值框架，仅作个人投资参考，不构成投资建议。</p>
   `;
 }
 
