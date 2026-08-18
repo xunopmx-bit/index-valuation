@@ -28,20 +28,20 @@ module.exports = {
     { index_code: "SH000903", method: "PE", section: "市盈率法", name: "中证100", fundCode: "512910", fundFcode: "213010" },
     { index_code: "SZ399001", method: "PE", section: "市盈率法", name: "深证成指", fundCode: "159943", fundFcode: "163109" },
     { index_code: "SZ399330", method: "PE", section: "市盈率法", name: "深证100", fundCode: "159901", fundFcode: "161227" },
-    { index_code: "SZ399317", method: "PE", section: "市盈率法", name: "国证A指", fundCode: "005414", fundFcode: "005414" },
+    { index_code: "SZ399317", method: "PE", section: "市盈率法", name: "国证A指", fundFcode: "005414" },
     { index_code: "CSPSADRP", method: "PE", section: "市盈率法", hold: true, name: "红利机会", fundCode: "501029", fundFcode: "501029" },
     { index_code: "SZ399701", method: "PE", section: "市盈率法", hold: true, name: "基本面60", fundCode: "159916", fundFcode: "530015" },
     { index_code: "SZ399702", method: "PE", section: "市盈率法", name: "基本面120", fundCode: "159910", fundFcode: "070023" },
     { index_code: "SZ399997", method: "PE", section: "市盈率法", hold: true, name: "中证白酒", fundCode: "161725", fundFcode: "161725" },
     { index_code: "SZ399989", method: "PE", section: "市盈率法", hold: true, name: "中证医疗", fundCode: "512170", fundFcode: "001417" },
-    { index_code: "SH000991", method: "PE", section: "市盈率法", name: "全指医药", fundCode: "512010", fundFcode: "001180" },
-    { index_code: "SH000978", method: "PE", section: "市盈率法", name: "医药100", fundCode: "159938", fundFcode: "001550" },
+    { index_code: "SH000991", method: "PE", section: "市盈率法", name: "全指医药", fundCode: "159938", fundFcode: "001180" },
+    { index_code: "SH000978", method: "PE", section: "市盈率法", name: "医药100", fundFcode: "001550" },
     { index_code: "SH000932", method: "PE", section: "市盈率法", name: "主要消费", fundCode: "510630", fundFcode: "000248" },
     { index_code: "SH000989", method: "PE", section: "市盈率法", name: "全指可选", fundCode: "159936", fundFcode: "001133" },
     { index_code: "SZ399396", method: "PE", section: "市盈率法", name: "国证食品", fundCode: "159862", fundFcode: "160222" },
     { index_code: "SH000919", method: "EP", section: "盈利收益率法", name: "300价值", fundCode: "562320", fundFcode: "310398" },
     { index_code: "SZ399324", method: "PE", section: "市盈率法", name: "深证红利", fundCode: "159905", fundFcode: "481012" },
-    { index_code: "SZ399812", method: "PE", section: "市盈率法", name: "养老产业", fundCode: "516860", fundFcode: "000968" },
+    { index_code: "SZ399812", method: "PE", section: "市盈率法", name: "养老产业", fundCode: "516560", fundFcode: "000968" },
     { index_code: "CSIH30533", method: "PE", section: "市盈率法", name: "中概互联50", fundCode: "513050", fundFcode: "006327" },
     { index_code: "CSIH11136", method: "PE", section: "市盈率法", name: "中国互联", fundCode: "164906", fundFcode: "164906" },
     { index_code: "HKHSTECH", method: "PE", section: "市盈率法", name: "恒生科技", fundCode: "513180", fundFcode: "012349" },
@@ -53,8 +53,8 @@ module.exports = {
     { index_code: "SZ399417", method: "PE", section: "市盈率法", name: "新能源车", fundCode: "515030", fundFcode: "160225" },
     { index_code: "SZ399971", method: "PE", section: "市盈率法", name: "中证传媒", fundCode: "512980", fundFcode: "004752" },
     { index_code: "SZ399998", method: "PB", section: "市净率法", name: "中证煤炭", fundCode: "515220", fundFcode: "008279" },
-    { index_code: "CSI931142", method: "PE", section: "市盈率法", name: "东证竞争", fundCode: "515110", fundFcode: "007658" },
-    { index_code: "CSI931157", method: "EP", section: "盈利收益率法", name: "沪港深红利低波", fundCode: "515880", fundFcode: "007751" },
+    { index_code: "CSI931142", method: "PE", section: "市盈率法", name: "东证竞争", fundFcode: "007658" },
+    { index_code: "CSI931157", method: "EP", section: "盈利收益率法", name: "沪港深红利低波", fundFcode: "007751" },
     { index_code: "SH000827", method: "PB", section: "市净率法", name: "中证环保", fundCode: "512580", fundFcode: "001064" },
     { index_code: "CSI930782", method: "PE", section: "市盈率法", name: "500低波", fundCode: "512260", fundFcode: "003318" },
     { index_code: "HSFML25", method: "PE", section: "市盈率法", name: "香港大盘", fundCode: "501301", fundFcode: "501301" },
@@ -74,8 +74,8 @@ module.exports = {
     { index_code: "935600", method: "PE", section: "海外市场", name: "MSCI印度", fundCode: "164824", fundFcode: "164824" },
     { index_code: "SPACEVCP", method: "PE", section: "海外市场", name: "标普价值", fundCode: "501310", fundFcode: "501310" },
     { index_code: "SPCQVCP", method: "PE", section: "海外市场", name: "标普质量", fundCode: "501069", fundFcode: "501069" },
-    { index_code: "HKHSSCNE", method: "PE", section: "海外市场", name: "新经济", fundCode: "501312", fundFcode: "501312" },
-    { index_code: "CSIH30094", method: "PE", section: "市盈率法", name: "消费红利", fundCode: "159928", fundFcode: "008928" },
+    { index_code: "HKHSSCNE", method: "PE", section: "海外市场", name: "新经济", fundCode: "513320" },
+    { index_code: "CSIH30094", method: "PE", section: "市盈率法", name: "消费红利", fundFcode: "008928" },
     { index_code: "931139", method: "PE", section: "市盈率法", hold: true, name: "消费50", fundCode: "515650", fundFcode: "014208", source: "csindex" },
     { index_code: "930743", method: "PE", section: "市盈率法", hold: true, name: "生物科技", fundCode: "159837", fundFcode: "011117", source: "csindex" },
     { index_code: "931187", method: "PE", section: "市盈率法", hold: true, name: "科技100", fundCode: "515580", fundFcode: "008399", source: "csindex" },
@@ -94,7 +94,6 @@ module.exports = {
       ret3y: 0.03159,
       ret5y: 0.03439,
       maxDrawdown5y: -0.0123,
-      fundCode: "014101",
       fundFcode: "014101",
       baseDate: "2011-12-31",
       desc: "中短期高等级政金债，波动小，近5年最大回撤仅-1.23%，适合作为防守现金流与随时加仓股票的子弹库"
@@ -110,7 +109,6 @@ module.exports = {
       ret3y: 0.03180,
       ret5y: 0.03450,
       maxDrawdown5y: -0.01209,
-      fundCode: "011983",
       fundFcode: "011983",
       baseDate: "2011-12-31",
       desc: "国家信用背书，免税且收益稳健，与3-5年国开债类似，适合作为极低波动的防守底仓"
@@ -199,9 +197,9 @@ module.exports = {
 
   // 固定收益补充品种
   fixedIncomeOther: [
-    { name: "可转债基金", type: "可转债", fundCode: "519977", fundFcode: "519977", desc: "股债二象性，下有债底保护，上有股票上涨弹性" },
+    { name: "可转债基金", type: "可转债", fundFcode: "519977", desc: "股债二象性，下有债底保护，上有股票上涨弹性" },
     { name: "美国房地产REITs", type: "海外REITs", fundCode: "VNQ", fundFcode: "000179", yield: 0.0354, desc: "海外优质商业地产收租，股息率约3.5%，与国内股市相关性低" },
-    { name: "货币基金", type: "现金管理", fundCode: "003474", fundFcode: "003474", desc: "极高流动性，随时用于股票大跌时的补仓弹药" }
+    { name: "货币基金", type: "现金管理", fundFcode: "003474", desc: "极高流动性，随时用于股票大跌时的补仓弹药" }
   ],
 
   // 整体市场星级基准（用户认可口径：沪深300+中证500+中证800 加权）

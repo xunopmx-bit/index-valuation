@@ -183,13 +183,17 @@ async function fetchFundPrices(indexes) {
           if (parts.length >= 5) {
             const nav = parseFloat(parts[1]);
             const prevClose = parseFloat(parts[3]); // 上日净值
-            if (!isNaN(nav) && nav > 0) {
+            const navDate = parts[4] ? parts[4].replace(/-/g, '') : null; // YYYYMMDD
+            // 守卫：净值日期明显过期（早于前一年）视为基金已停披露，忽略防止展示过期价格
+            const curYear = parseInt(beijingDateStr(new Date()).slice(0, 4), 10);
+            const navYear = navDate ? parseInt(navDate.slice(0, 4), 10) : 0;
+            if (!isNaN(nav) && nav > 0 && navYear >= curYear - 1) {
               prices['f_' + fcode] = {
                 nowPrice: nav,
                 prevClose: isNaN(prevClose) ? null : prevClose,
                 name: parts[0],
                 type: '场外',
-                date: parts[4] ? parts[4].replace(/-/g, '') : null, // YYYYMMDD
+                date: navDate,
               };
             }
           }
