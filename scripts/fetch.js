@@ -121,6 +121,8 @@ function getSecCode(code) {
 }
 
 // 批量抓取基金前日/最新收盘价格或单位净值（优先场内ETF/LOF，无场内则降级取场外基金净值）
+// 场内：东方财富 push2delay 批量行情接口（f2=最新价/f18=昨收/f12=代码/f14=名称，JSON 无日期需探针补齐）
+// 场外：东方财富天天基金历史净值接口（逐只查询，需 Referer）
 async function fetchFundPrices(indexes) {
   const prices = {}; // code -> { price, name, type, date }
   const secCodes = [];
@@ -131,32 +133,28 @@ async function fetchFundPrices(indexes) {
     if (sec) secCodes.push(sec);
   }
 
-  // 1. 批量查场内（腾讯行情 qt.gtimg.cn）
+  // 1. 批量查场内（东财 push2delay ulist.np，无需 token/Referer，延迟版避开直连限制）
   if (secCodes.length > 0) {
     try {
-      const res = await fetch('https://qt.gtimg.cn/q=' + secCodes.join(','));
+      // sh -> 1.xxxxxx，sz -> 0.xxxxxx
+      const secids = secCodes.map(s => (s.startsWith('sh') ? '1.' : '0.') + s.slice(2)).join(',');
+      const url = `https://push2delay.eastmoney.com/api/qt/ulist.np/get?fltt=2&secids=${secids}&fields=f2,f3,f4,f12,f14,f18`;
+      const res = await fetch(url);
       if (res.ok) {
-        const text = await res.text();
-        const lines = text.split(';');
-        for (const line of lines) {
-          const m = line.match(/v_(sh|sz)(\d+)="([^"]+)"/);
-          if (!m) continue;
-          const rawCode = m[2];
-          const parts = m[3].split('~');
-          if (parts.length > 5) {
-            const name = parts[1];
-            const nowPrice = parseFloat(parts[3]);
-            const prevClose = parseFloat(parts[4]);
-            const dateRaw = parts[30] || '';
-            if (!isNaN(nowPrice)) {
-              prices[rawCode] = {
-                nowPrice,
-                prevClose: isNaN(prevClose) ? null : prevClose,
-                name,
-                type: '场内',
-                date: dateRaw ? dateRaw.slice(0, 8) : null, // YYYYMMDD
-              };
-            }
+        const json = await res.json();
+        const list = json?.data?.diff || [];
+        for (const it of list) {
+          const code = String(it.f12);
+          const nowPrice = Number(it.f2);
+          const prevClose = Number(it.f18);
+          if (Number.isFinite(nowPrice) && nowPrice > 0) {
+            prices[code] = {
+              nowPrice,
+              prevClose: Number.isFinite(prevClose) ? prevClose : null,
+              name: it.f14 || '',
+              type: '场内',
+              date: null, // 东财接口不带日期，由下方探针统一补齐
+            };
           }
         }
       }
@@ -165,42 +163,62 @@ async function fetchFundPrices(indexes) {
     }
   }
 
-  // 2. 批量查场外（新浪基金行情 f_xxxxxx），供无场内代码或场内无报价标的使用
-  if (allOutCodes.length > 0) {
+  // 1.1 场内价格日期探针：东财接口无日期字段，用腾讯行情查上证指数当前交易日统一补齐
+  //     （探针返回的时间戳与各 ETF 同属一个交易日）
+  if (Object.keys(prices).length > 0) {
     try {
-      const sinaOutList = allOutCodes.map(c => 'f_' + c).join(',');
-      const res2 = await fetch('https://hq.sinajs.cn/list=' + sinaOutList, {
-        headers: { 'Referer': 'https://finance.sina.com.cn' },
-      });
-      if (res2.ok) {
-        const text2 = await res2.text();
-        const lines2 = text2.split(';');
-        for (const line of lines2) {
-          const m = line.match(/var hq_str_f_(\d+)="([^"]+)"/);
-          if (!m) continue;
-          const fcode = m[1];
-          const parts = m[2].split(',');
-          if (parts.length >= 5) {
-            const nav = parseFloat(parts[1]);
-            const prevClose = parseFloat(parts[3]); // 上日净值
-            const navDate = parts[4] ? parts[4].replace(/-/g, '') : null; // YYYYMMDD
-            // 守卫：净值日期明显过期（早于前一年）视为基金已停披露，忽略防止展示过期价格
-            const curYear = parseInt(beijingDateStr(new Date()).slice(0, 4), 10);
-            const navYear = navDate ? parseInt(navDate.slice(0, 4), 10) : 0;
-            if (!isNaN(nav) && nav > 0 && navYear >= curYear - 1) {
-              prices['f_' + fcode] = {
-                nowPrice: nav,
-                prevClose: isNaN(prevClose) ? null : prevClose,
-                name: parts[0],
-                type: '场外',
-                date: navDate,
-              };
-            }
+      const probe = await fetch('https://qt.gtimg.cn/q=sh000001');
+      if (probe.ok) {
+        const text = await probe.text();
+        const m = text.match(/v_sh000001="([^"]+)"/);
+        if (m) {
+          const parts = m[1].split('~');
+          const dateRaw = parts[30] || '';
+          const pDate = dateRaw ? dateRaw.slice(0, 8) : null;
+          for (const code of Object.keys(prices)) {
+            prices[code].date = pDate;
           }
         }
       }
     } catch (e) {
-      console.warn('⚠️ 场外基金净值批量获取失败:', e.message);
+      console.warn('⚠️ 场内价格日期探针失败:', e.message);
+    }
+  }
+
+  // 2. 场外基金净值（东财天天基金历史净值接口，逐只查询，10 只并发分批）
+  if (allOutCodes.length > 0) {
+    const BATCH = 10;
+    for (let i = 0; i < allOutCodes.length; i += BATCH) {
+      const batch = allOutCodes.slice(i, i + BATCH);
+      await Promise.all(batch.map(async (fcode) => {
+        try {
+          const res = await fetch(`https://api.fund.eastmoney.com/f10/lsjz?fundCode=${fcode}&pageIndex=1&pageSize=2`, {
+            headers: { 'Referer': 'https://fundf10.eastmoney.com/' },
+          });
+          if (!res.ok) return;
+          const text = await res.text();
+          const json = JSON.parse(text.replace(/^\uFEFF/, '')); // 去除 BOM
+          const list = json?.Data?.LSJZList || [];
+          if (list.length === 0) return;
+          const nav = parseFloat(list[0].DWJZ); // 最新单位净值
+          const navDate = list[0].FSRQ ? list[0].FSRQ.replace(/-/g, '') : null; // YYYYMMDD
+          const prevClose = list.length > 1 ? parseFloat(list[1].DWJZ) : null; // 前一交易日净值
+          // 守卫：净值日期明显过期（早于前一年）视为基金已停披露，忽略防止展示过期价格
+          const curYear = parseInt(beijingDateStr(new Date()).slice(0, 4), 10);
+          const navYear = navDate ? parseInt(navDate.slice(0, 4), 10) : 0;
+          if (!isNaN(nav) && nav > 0 && navYear >= curYear - 1) {
+            prices['f_' + fcode] = {
+              nowPrice: nav,
+              prevClose: isNaN(prevClose) ? null : prevClose,
+              name: '',
+              type: '场外',
+              date: navDate,
+            };
+          }
+        } catch (e) {
+          console.warn(`⚠️ 场外基金 ${fcode} 净值获取失败:`, e.message);
+        }
+      }));
     }
   }
 
