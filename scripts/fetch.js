@@ -303,16 +303,34 @@ async function fetchLeguleguMeta(code) {
 }
 
 async function main() {
-  const [items, fundPrices] = await Promise.all([
-    fetchDanjuan(),
-    fetchFundPrices(config.indexes),
-  ]);
+  const items = await fetchDanjuan();
   const now = new Date();
   const dateStr = beijingDateStr(now);
   // 蛋卷估值 date 形如 "08-17"，归档按抓取日（北京）区分
   const dataDate = items[0]?.date ?? '';
   const valuationYear = now.getFullYear();
   const targetDateIntStr = `${valuationYear}${dataDate.replace('-', '')}`; // e.g. "20260817"
+
+  // 非交易日跳过：蛋卷在非交易日（周末/节假日）不产生新估值，返回的 date 仍是最近一个
+  // 交易日的值。若当前估值日期与最近历史快照的估值日期相同，说明前一日（T-1）非交易日，
+  // 则当天不更新、不写新快照，前端筛选器自然跳过该日期；待下一个交易日的次日（蛋卷更新
+  // 出新估值）再继续。判断基于 MM-DD 字符串：365 天窗口内不会出现两个相同 MM-DD，安全。
+  const historyIdx = readHistoryIndex();
+  const historyDates = historyIdx.dates || [];
+  if (historyDates.length > 0) {
+    const lastDate = historyDates[historyDates.length - 1];
+    let lastDataDate = null;
+    try {
+      const lastSnap = JSON.parse(fs.readFileSync(path.join(HIST_DIR, `${lastDate}.json`), 'utf-8'));
+      lastDataDate = lastSnap.dataDate || null;
+    } catch {}
+    if (lastDataDate && dataDate && dataDate === lastDataDate) {
+      console.log(`ℹ️ 估值日期 ${dataDate} 未更新（与最近快照归档日 ${lastDate} 相同）=> 前一日为非交易日或同日重复运行，今日 ${dateStr} 跳过更新，等待下一个交易日的新估值。`);
+      return;
+    }
+  }
+
+  const fundPrices = await fetchFundPrices(config.indexes);
 
   // 自建补源 (csindex) 异步并行抓取与计算
   const csindexCfgs = config.indexes.filter(idx => idx.source === 'csindex');
