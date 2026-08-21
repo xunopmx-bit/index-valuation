@@ -231,6 +231,16 @@ function readHistoryIndex() {
   try {
     return JSON.parse(fs.readFileSync(HIST_INDEX, 'utf-8'));
   } catch {
+    // 索引文件损坏（如 git rebase 冲突残留）时，扫描快照目录重建日期索引，避免丢失历史
+    if (fs.existsSync(HIST_DIR)) {
+      try {
+        const dates = fs.readdirSync(HIST_DIR)
+          .filter(f => /^\d{4}-\d{2}-\d{2}\.json$/.test(f))
+          .map(f => f.slice(0, 10))
+          .sort();
+        return { dates };
+      } catch {}
+    }
     return { dates: [] };
   }
 }
