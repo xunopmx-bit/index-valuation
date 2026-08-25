@@ -311,21 +311,17 @@ async function main() {
   const valuationYear = now.getFullYear();
   const targetDateIntStr = `${valuationYear}${dataDate.replace('-', '')}`; // e.g. "20260817"
 
-  // 非交易日跳过：蛋卷在非交易日（周末/节假日）不产生新估值，返回的 date 仍是最近一个
-  // 交易日的值。若当前估值日期与最近历史快照的估值日期相同，说明前一日（T-1）非交易日，
-  // 则当天不更新、不写新快照，前端筛选器自然跳过该日期；待下一个交易日的次日（蛋卷更新
-  // 出新估值）再继续。判断基于 MM-DD 字符串：365 天窗口内不会出现两个相同 MM-DD，安全。
+  // 同日重复运行跳过：若今天（北京）已生成过历史快照（如手动触发重复跑、或 Actions
+  // 与手动触发撞车），则直接跳过，避免生成两个相同归档日的快照。注意这里必须按「归档日
+  // dateStr」判断而非「蛋卷估值日期 dataDate」：周末后首个交易日（如周一）蛋卷返回的估值
+  // 日期仍是上周五的值，dataDate 与最近快照相同，但此时周一属于新的交易日、应正常生成
+  // 周一归档（展示上一交易日估值），让筛选器能回溯到周一。仅当本归档日已写过才跳过。
   const historyIdx = readHistoryIndex();
   const historyDates = historyIdx.dates || [];
   if (historyDates.length > 0) {
     const lastDate = historyDates[historyDates.length - 1];
-    let lastDataDate = null;
-    try {
-      const lastSnap = JSON.parse(fs.readFileSync(path.join(HIST_DIR, `${lastDate}.json`), 'utf-8'));
-      lastDataDate = lastSnap.dataDate || null;
-    } catch {}
-    if (lastDataDate && dataDate && dataDate === lastDataDate) {
-      console.log(`ℹ️ 估值日期 ${dataDate} 未更新（与最近快照归档日 ${lastDate} 相同）=> 前一日为非交易日或同日重复运行，今日 ${dateStr} 跳过更新，等待下一个交易日的新估值。`);
+    if (dateStr === lastDate) {
+      console.log(`ℹ️ 归档日 ${dateStr} 已存在（与最近快照相同）=> 同日重复运行，跳过更新，等待下一交易日的新估值。`);
       return;
     }
   }

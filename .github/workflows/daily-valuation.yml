@@ -3,7 +3,8 @@ name: 每日估值更新与部署
 on:
   schedule:
     # 每个交易日北京时间 06:00 更新（T+1 数据）
-    - cron: '0 22 * * 1-5'
+    # UTC 周日~周四 22:00 = 北京周一~周五 06:00，覆盖周末后首个交易日
+    - cron: '0 22 * * 0-4'
   workflow_dispatch:
 
 permissions:
