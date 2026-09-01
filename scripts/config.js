@@ -7,12 +7,12 @@
 module.exports = {
   indexes: [
     // ============ 盈利收益率法板块（盈利稳定品种，EP>10%可投） ============
-    { index_code: "SH000015", method: "EP", section: "盈利收益率法", hold: true, name: "上证红利", fundCode: "510880", fundFcode: "012761", source: "csindex" },
+    { index_code: "SH000015", method: "EP", section: "盈利收益率法", name: "上证红利", fundCode: "510880", fundFcode: "012761", source: "csindex" },
     { index_code: "SH000925", method: "EP", section: "盈利收益率法", name: "基本面50", fundCode: "512750", fundFcode: "160716", source: "csindex" },
     { index_code: "SH000170", method: "EP", section: "盈利收益率法", hold: true, name: "50AH优选", fundCode: "501050", fundFcode: "501050" },
     { index_code: "HKHSCEI", method: "EP", section: "盈利收益率法", hold: true, name: "H股指数", fundCode: "510900", fundFcode: "110031", epDiscount: 0.9 },
     { index_code: "HKHSI", method: "EP", section: "盈利收益率法", name: "恒生指数", fundCode: "159920", fundFcode: "000071", epDiscount: 0.9 },
-    { index_code: "SH000016", method: "EP", section: "盈利收益率法", name: "上证50", fundCode: "510100", fundFcode: "110003", source: "csindex" },
+    { index_code: "SH000016", method: "EP", section: "盈利收益率法", hold: true, name: "上证50", fundCode: "510800", fundFcode: "110003", source: "csindex" },
     { index_code: "SZ399550", method: "EP", section: "盈利收益率法", name: "央视50", fundCode: "159965", fundFcode: "217027" },
     { index_code: "SH000010", method: "EP", section: "盈利收益率法", name: "上证180", fundCode: "510180", fundFcode: "040180", source: "csindex" },
     { index_code: "SH000922", method: "EP", section: "盈利收益率法", name: "中证红利", fundCode: "515080", fundFcode: "012644", source: "csindex" },
@@ -79,6 +79,8 @@ module.exports = {
     { index_code: "931139", method: "PE", section: "市盈率法", hold: true, name: "消费50", fundCode: "515650", fundFcode: "014208", source: "csindex" },
     { index_code: "930743", method: "PE", section: "市盈率法", hold: true, name: "生物科技", fundCode: "159837", fundFcode: "011117", source: "csindex" },
     { index_code: "931187", method: "PE", section: "市盈率法", hold: true, name: "科技100", fundCode: "515580", fundFcode: "008399", source: "csindex" },
+    { index_code: "930050", method: "PE", section: "市盈率法", hold: true, name: "中证A500", fundCode: "159338", fundFcode: "159338", source: "csindex" },
+    { index_code: "000698", method: "PE", section: "市盈率法", hold: true, name: "科创100", fundCode: "588030", fundFcode: "588030", source: "csindex" },
   ],
 
   // ============ 人民币债券估值表（银行螺丝钉专属固收板块） ============
