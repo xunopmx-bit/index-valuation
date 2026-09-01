@@ -5,6 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const config = require('./config');
+const calibration = require('./calibration');
 
 const DANJUAN_API = 'https://danjuanfunds.com/djapi/index_eva/dj';
 const OUT_DIR = path.join(__dirname, '..', 'site', 'data');
@@ -12,6 +13,59 @@ const OUT_FILE = path.join(OUT_DIR, 'valuations.json');
 const HIST_DIR = path.join(OUT_DIR, 'history');
 const HIST_INDEX = path.join(HIST_DIR, 'index.json');
 const MAX_DAYS = 365; // 保留最近365天历史
+
+// 巴菲特指标数据源常量（东财延迟行情 + 东财宏观数据中心）
+const EM_QUOTE_URL = 'https://push2delay.eastmoney.com/api/qt/ulist.np/get';
+const EM_GDP_URL = 'https://datacenter-web.eastmoney.com/api/data/v1/get';
+
+// 巴菲特指标：A股总市值 ÷ 最近年度名义GDP（口径对齐螺丝钉 80.58%）
+// 用「上证综指(000001) + 深证综指(399106)」总市值之和代表 A 股总市值
+async function fetchBuffett() {
+  try {
+    const quoteRes = await fetch(
+      `${EM_QUOTE_URL}?fltt=2&secids=1.000001,0.399106&fields=f2,f12,f14,f20`,
+      { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36' } }
+    );
+    if (!quoteRes.ok) throw new Error(`行情接口 HTTP ${quoteRes.status}`);
+    const quoteJson = await quoteRes.json();
+    const diff = quoteJson?.data?.diff;
+    if (!Array.isArray(diff)) throw new Error('行情接口无 diff');
+    let totalCap = 0;
+    for (const d of diff) {
+      const cap = Number(d.f20);
+      if (Number.isFinite(cap) && cap > 0) totalCap += cap;
+    }
+    if (totalCap <= 0) throw new Error('总市值解析失败');
+
+    const gdpRes = await fetch(
+      `${EM_GDP_URL}?reportName=RPT_ECONOMY_GDP&columns=REPORT_DATE,DOMESTICL_PRODUCT_BASE,SUM_SAME&pageSize=8&sortColumns=REPORT_DATE&sortTypes=-1&pageNumber=1`,
+      { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36', 'Referer': 'https://data.eastmoney.com/' } }
+    );
+    if (!gdpRes.ok) throw new Error(`GDP接口 HTTP ${gdpRes.status}`);
+    const gdpJson = await gdpRes.json();
+    const gdpRows = gdpJson?.result?.data;
+    if (!Array.isArray(gdpRows) || gdpRows.length === 0) throw new Error('GDP数据为空');
+
+    // 取最近一个「完整年度」的累计 GDP（DOMESTICL_PRODUCT_BASE 为累计值，亿元）
+    const annualRow = gdpRows.find(r => /12-01/.test(r.REPORT_DATE)) || gdpRows[0];
+    const gdpAnnualYiyuan = Number(annualRow.DOMESTICL_PRODUCT_BASE);
+    if (!Number.isFinite(gdpAnnualYiyuan) || gdpAnnualYiyuan <= 0) throw new Error('年度GDP解析失败');
+
+    // totalCap 单位=元；GDP 单位=亿元。巴菲特指标 = 总市值 / GDP
+    const ratio = (totalCap / 1e8) / gdpAnnualYiyuan;
+
+    return {
+      ratio: Number((ratio * 100).toFixed(2)),   // 百分比，如 80.58
+      totalCapYiyuan: Number((totalCap / 1e8).toFixed(0)),
+      gdpYear: annualRow.REPORT_DATE.slice(0, 10),
+      gdpYiyuan: Number(gdpAnnualYiyuan.toFixed(0)),
+      gdpYoY: annualRow.SUM_SAME ?? null,
+    };
+  } catch (e) {
+    console.warn(`⚠️ 巴菲特指标获取失败: ${e.message}`);
+    return null;
+  }
+}
 
 async function fetchDanjuan() {
   const res = await fetch(DANJUAN_API, {
@@ -391,6 +445,9 @@ async function main() {
 
   const fundPrices = await fetchFundPrices(config.indexes);
 
+  // 巴菲特指标（A股总市值/GDP），失败则返回 null 不阻塞主流程
+  const buffett = await fetchBuffett();
+
   // 自建补源 (csindex) 异步并行抓取与计算
   const csindexCfgs = config.indexes.filter(idx => idx.source === 'csindex');
   const csindexData = {};
@@ -515,6 +572,26 @@ async function main() {
       formattedPriceDate = `${priceDate.slice(0, 4)}-${priceDate.slice(4, 6)}-${priceDate.slice(6, 8)}`;
     }
 
+    // 模拟螺丝钉口径（剔除亏损 TTM）：pe/pb 乘以校准因子。
+    // 有因子则输出 screwPe/screwPb/screwColor 供前端对比分歧品种。
+    const cal = calibration.factors[cfg.index_code];
+    let screwPe = null;
+    let screwPb = null;
+    let screwColor = null;
+    if (cal && raw?.pe) {
+      if (cal.peFactor) screwPe = Number((raw.pe * cal.peFactor).toFixed(4));
+      if (cal.pbFactor && raw?.pb) screwPb = Number((raw.pb * cal.pbFactor).toFixed(4));
+      if (screwPe && (method === 'EP' || method === 'PE')) {
+        // 用模拟 PE 计算红黄绿：EP 板块看盈利收益率绝对阈值，PE 板块用百分位近似。
+        // 百分位随口径变化小，此处以「模拟 EP」判断 EP 板块，PE 板块沿用系统百分位颜色。
+        if (method === 'EP') {
+          let sEp = 1 / screwPe;
+          if (cfg.epDiscount) sEp *= cfg.epDiscount;
+          screwColor = sEp >= config.epThreshold.buy ? 'green' : (sEp >= config.epThreshold.sell ? 'yellow' : 'red');
+        }
+      }
+    }
+
     results.push({
       index_code: cfg.index_code,
       name: cfg.name,
@@ -538,6 +615,9 @@ async function main() {
       percentile: percentile !== null && percentile !== undefined ? Number(percentile.toFixed(4)) : null,
       color,
       star,
+      screwPe,
+      screwPb,
+      screwColor,
       date: raw?.date ?? dateStr,
       source: cfg.source || (raw ? 'danjuan' : 'missing'),
     });
@@ -562,6 +642,11 @@ async function main() {
       star: market?.star ?? null,
       avgPercentile: market?.avgPercentile ?? null,
       benchmark: config.starBenchmark,
+    },
+    buffett: buffett || null, // 巴菲特指标：{ratio, totalCapYiyuan, gdpYear, gdpYiyuan, gdpYoY}
+    calibration: {
+      note: '模拟螺丝钉口径（剔除亏损TTM），由校准因子表计算；因子基于用户提供的历史表逐步收敛',
+      history: calibration.history,
     },
     thresholds: { ...config.colorThreshold, ...config.epThreshold },
     sections: sectionOrder,

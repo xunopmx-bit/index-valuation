@@ -57,6 +57,19 @@
   .legend { font-size: 12px; color: var(--muted); margin-top: 6px; }
   .legend span { display: inline-block; margin-right: 12px; }
   .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+  .buffett-card {
+    margin-left: auto;
+    text-align: center;
+    padding: 6px 14px;
+    border-radius: 10px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+  }
+  .buffett-val { font-size: 22px; font-weight: 700; line-height: 1.1; }
+  .buffett-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .buffett-card.b-low .buffett-val { color: var(--green); }
+  .buffett-card.b-mid .buffett-val { color: var(--yellow); }
+  .buffett-card.b-high .buffett-val { color: var(--red); }
   main { max-width: 1000px; margin: 0 auto; padding: 16px; }
   .toolbar {
     display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;
@@ -106,6 +119,15 @@
   .percentile-bar { position: relative; width: 80px; height: 6px; background: #e5e7eb; border-radius: 3px; display: inline-block; vertical-align: middle; margin-left: 6px; }
   .percentile-fill { position: absolute; height: 100%; border-radius: 3px; }
   .ep-hi { color: var(--green); font-weight: 700; }
+  .screw-flag {
+    display: inline-block; margin-left: 5px; padding: 1px 6px; border-radius: 4px;
+    font-size: 10px; font-weight: 600; background: #fff3cd; color: #b45309;
+    border: 1px solid #fcd34d; cursor: help; vertical-align: 1px;
+  }
+  .screw-ok {
+    display: inline-block; margin-left: 5px; padding: 1px 6px; border-radius: 4px;
+    font-size: 10px; color: var(--muted); background: #f1f5f9; cursor: help; vertical-align: 1px;
+  }
   .missing { color: var(--muted); font-style: italic; }
   .suffix { font-size: 11px; color: var(--muted); }
   .nav-val { font-weight: 600; font-family: ui-monospace, monospace, sans-serif; }
@@ -158,6 +180,10 @@
       </div>
       <div class="star-text" id="starText">加载中...</div>
       <div class="legend" id="legend"></div>
+      <div class="buffett-card" id="buffettCard" style="display:none">
+        <div class="buffett-val"><span id="buffettRatio">-</span></div>
+        <div class="buffett-label">巴菲特指标<br><small>总市值/年度GDP</small></div>
+      </div>
     </div>
   </div>
 </header>
@@ -239,7 +265,21 @@ function renderMeta() {
   document.getElementById('starNum').textContent = star == null ? '-' : star;
   document.getElementById('starText').innerHTML =
     `整体市场：<strong style="color:${starColor(star)}">${star == null ? '-' : star + ' 星'}</strong>（基准百分位 ${(d.market.avgPercentile * 100).toFixed(1)}%）<br>` +
-    starText(star) + '（基准：沪深300 + 中证500）';
+    starText(star) + '（基准：沪深300 + 中证500 + 中证1000）';
+
+  // 巴菲特指标卡片（A股总市值 / 年度GDP）
+  const bCard = document.getElementById('buffettCard');
+  if (d.buffett) {
+    bCard.style.display = 'block';
+    const r = d.buffett.ratio;
+    const lvl = r < 60 ? 'b-low' : r < 100 ? 'b-mid' : 'b-high';
+    bCard.className = 'buffett-card ' + lvl;
+    document.getElementById('buffettRatio').textContent = r.toFixed(1) + '%';
+    const title = `A股总市值约 ${(d.buffett.totalCapYiyuan / 10000).toFixed(1)} 万亿 ÷ ${d.buffett.gdpYear}年度GDP ${(d.buffett.gdpYiyuan / 10000).toFixed(1)} 万亿\n国际惯例：<60% 低估区 · 60~100% 合理区 · >100% 高估区\n螺丝钉口径（两市总市值/最近年度GDP）`;
+    bCard.title = title;
+  } else {
+    bCard.style.display = 'none';
+  }
 
   const legend = document.getElementById('legend');
   legend.innerHTML =
@@ -349,6 +389,15 @@ function renderContent() {
           ? `<span class="nav-val" title="${i.priceType || '场内'}: ${i.priceCode || '-'} (更新: ${i.priceDate || '-'})">${Number(i.closePrice).toFixed(4)}</span><span class="price-type-tag">${i.priceType || '场内'}</span>`
           : '<span class="missing">-</span>';
 
+        // 螺丝钉口径分歧标记：screwColor 与系统 color 不一致时高亮提示
+        let statusHtml = `<span class="color-badge color-${i.color}">${colorName}</span>`;
+        if (i.screwColor && i.screwColor !== i.color) {
+          const scName = { green: '低估', yellow: '正常', red: '高估' }[i.screwColor] || i.screwColor;
+          statusHtml += `<span class="screw-flag" title="螺丝钉口径(剔除亏损)判断为【${scName}】，与本看板不一致。螺丝钉PE=${i.screwPe != null ? i.screwPe.toFixed(2) : '-'}">螺:${scName}</span>`;
+        } else if (i.screwPe != null) {
+          statusHtml += `<span class="screw-ok" title="螺丝钉口径(剔除亏损)PE=${i.screwPe.toFixed(2)}，与本看板判断一致">螺${i.screwPe != null ? ':' + i.screwPe.toFixed(1) : ''}</span>`;
+        }
+
         html += `<tr${cls}>
           <td><span class="index-name">${i.name}</span>${badge}</td>
           <td>${navHtml}</td>
@@ -357,7 +406,7 @@ function renderContent() {
           <td>${i.yield != null ? (i.yield * 100).toFixed(2) + '%' : '-'}</td>
           <td>${i.roe != null ? (i.roe * 100).toFixed(1) + '%' : '-'}</td>
           <td>${pct}</td>
-          <td><span class="color-badge color-${i.color}">${colorName}</span></td>
+          <td>${statusHtml}</td>
           <td class="star" style="color:${starColor(i.star)}">${i.star != null ? i.star : '-'}</td>
           <td class="suffix">${i.fundCode || '-'}</td>
           <td class="suffix">${i.fundFcode || '-'}</td>
