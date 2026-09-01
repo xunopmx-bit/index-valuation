@@ -120,8 +120,9 @@ function getSecCode(code) {
   return null;
 }
 
-// 批量抓取基金前日/最新收盘价格或单位净值（优先场内ETF/LOF，无场内则降级取场外基金净值）
-// 场内：东方财富 push2delay 批量行情接口（f2=最新价/f18=昨收/f12=代码/f14=名称，JSON 无日期需探针补齐）
+// 批量抓取基金前日/最新收盘价格或单位净值（优先场内ETF/LOF，无场内则取场外基金净值）
+// 场内：东方财富 push2delay 批量行情接口优先（f2=最新价/f18=昨收/f12=代码/f14=名称，JSON 无日期需探针补齐）
+//       东财限流/返回空时自动回退腾讯 qt.gtimg.cn 批量接口（GBK 文本，parts[1]=名称/[3]=最新/[4]=昨收/[30]=日期）
 // 场外：东方财富天天基金历史净值接口（逐只查询，需 Referer）
 async function fetchFundPrices(indexes) {
   const prices = {}; // code -> { price, name, type, date }
@@ -143,28 +144,71 @@ async function fetchFundPrices(indexes) {
       if (res.ok) {
         const json = await res.json();
         const list = json?.data?.diff || [];
-        for (const it of list) {
-          const code = String(it.f12);
-          const nowPrice = Number(it.f2);
-          const prevClose = Number(it.f18);
-          if (Number.isFinite(nowPrice) && nowPrice > 0) {
-            prices[code] = {
-              nowPrice,
-              prevClose: Number.isFinite(prevClose) ? prevClose : null,
-              name: it.f14 || '',
-              type: '场内',
-              date: null, // 东财接口不带日期，由下方探针统一补齐
-            };
+        if (Array.isArray(list) && list.length === 0) {
+          console.warn(`⚠️ 东财 push2delay 返回空 diff（共 ${secCodes.length} 只），回退腾讯行情兜底`);
+        } else {
+          for (const it of list) {
+            const code = String(it.f12);
+            const nowPrice = Number(it.f2);
+            const prevClose = Number(it.f18);
+            if (Number.isFinite(nowPrice) && nowPrice > 0) {
+              prices[code] = {
+                nowPrice,
+                prevClose: Number.isFinite(prevClose) ? prevClose : null,
+                name: it.f14 || '',
+                type: '场内',
+                date: null, // 东财接口不带日期，由下方探针统一补齐
+              };
+            }
           }
         }
+      } else {
+        console.warn(`⚠️ 东财 push2delay HTTP ${res.status}，回退腾讯行情兜底`);
       }
     } catch (e) {
-      console.warn('⚠️ 场内行情批量获取失败:', e.message);
+      console.warn('⚠️ 场内行情批量获取失败（东财），回退腾讯行情兜底:', e.message);
+    }
+
+    // 1.0 腾讯行情兜底：东财空结果/失败时，用腾讯批量接口补齐全部场内价格（实测 61/61 全命中）
+    const missing = secCodes.filter(s => !prices[s.slice(2)]);
+    if (missing.length > 0) {
+      try {
+        const BATCH_T = 30;
+        for (let i = 0; i < missing.length; i += BATCH_T) {
+          const chunk = missing.slice(i, i + BATCH_T);
+          const res = await fetch('https://qt.gtimg.cn/q=' + chunk.join(','));
+          if (!res.ok) continue;
+          const text = await res.text();
+          for (const line of text.trim().split(';')) {
+            const m = line.match(/v_(sh|sz)\d+="([^"]*)"/);
+            if (!m) continue;
+            const code = m[0].match(/v_(?:sh|sz)(\d+)/)?.[1];
+            if (!code) continue;
+            const parts = m[2].split('~');
+            const nowPrice = Number(parts[3]);
+            const prevClose = Number(parts[4]);
+            const dateRaw = parts[30] || '';
+            if (Number.isFinite(nowPrice) && nowPrice > 0) {
+              prices[code] = {
+                nowPrice,
+                prevClose: Number.isFinite(prevClose) && prevClose > 0 ? prevClose : null,
+                name: parts[1] || '',
+                type: '场内',
+                date: dateRaw ? dateRaw.slice(0, 8) : null, // 腾讯自带交易日，无需探针
+              };
+            }
+          }
+        }
+        const got = missing.filter(s => prices[s.slice(2)]).length;
+        console.log(`ℹ️ 腾讯行情兜底补齐场内 ${got}/${missing.length} 只`);
+      } catch (e) {
+        console.warn('⚠️ 腾讯行情兜底失败:', e.message);
+      }
     }
   }
 
   // 1.1 场内价格日期探针：东财接口无日期字段，用腾讯行情查上证指数当前交易日统一补齐
-  //     （探针返回的时间戳与各 ETF 同属一个交易日）
+  //     （探针返回的时间戳与各 ETF 同属一个交易日；腾讯兜底的价格已自带日期会被覆盖为同一交易日，无损）
   if (Object.keys(prices).length > 0) {
     try {
       const probe = await fetch('https://qt.gtimg.cn/q=sh000001');
@@ -269,12 +313,29 @@ function saveHistory(dateStr, output) {
 }
 
 const CSI_FALLBACKS = {
-  '931187': { pb: 3.5, yield: 0.008 } // 科技100
+  '931139': { pb: 3.07, yield: 0.0407 }, // 消费50（乐咕历史稳态，页面限流时兜底）
+  '930743': { pb: 4.17, yield: 0.0133 }, // 生物科技
+  '931187': { pb: 3.5, yield: 0.008 }    // 科技100
 };
 
-async function fetchLeguleguMeta(code) {
+// 中证官网 indexCsiDsPe 接口需无交易所前缀的纯指数代码：
+// SH000300 -> 000300；SZ399997 -> 399997；CSIH30533 -> H30533；CSI931139 -> 931139；
+// HKHSCEI/SP500/NDX 等境外指数保持原样（官网无数据，调用方需自行跳过）
+function normalizeCsiCode(code) {
+  if (/^SH\d+$/.test(code) || /^SZ\d+$/.test(code)) return code.slice(2);
+  if (/^CSI/.test(code)) return code.slice(3); // CSIH30533->H30533, CSI931139->931139
+  return code;
+}
+
+async function fetchLeguleguMeta(indexCode) {
   try {
-    const res = await fetch(`https://legulegu.com/stockdata/index-basic?indexCode=${code}.CSI`, {
+    // 乐咕 index-basic 接口后缀规则：SH 老指数 000xxx.SH、SZ 399xxx.SZ、中证新指数 93xxxx.CSI
+    let lgCode = indexCode;
+    if (/^SH\d+$/.test(indexCode)) lgCode = `${indexCode.slice(2)}.SH`;
+    else if (/^SZ\d+$/.test(indexCode)) lgCode = `${indexCode.slice(2)}.SZ`;
+    else if (/^CSI/.test(indexCode)) lgCode = `${indexCode.slice(3)}.CSI`;
+    else lgCode = `${indexCode}.CSI`; // 已无前缀的 93xxxx
+    const res = await fetch(`https://legulegu.com/stockdata/index-basic?indexCode=${lgCode}`, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
       },
@@ -334,9 +395,10 @@ async function main() {
 
   await Promise.all(csindexCfgs.map(async (cfg) => {
     const code = cfg.index_code;
+    const csiCode = normalizeCsiCode(code); // 官网需无前缀
     try {
       // CSI P/E History
-      const peRes = await fetch(`https://www.csindex.com.cn/csindex-home/perf/indexCsiDsPe?indexCode=${code}`);
+      const peRes = await fetch(`https://www.csindex.com.cn/csindex-home/perf/indexCsiDsPe?indexCode=${csiCode}`);
       let pe = null;
       let pe_percentile = null;
       let tradeDate = null;
@@ -355,7 +417,7 @@ async function main() {
         }
       }
 
-      // Legulegu Meta
+      // Legulegu Meta（乐咕对老中证指数多无值，失败走 FALLBACK 或回退蛋卷）
       let legu = await fetchLeguleguMeta(code);
       if (!legu || !legu.pb) {
         legu = CSI_FALLBACKS[code] || { pb: null, yield: null };
@@ -378,8 +440,9 @@ async function main() {
         yeild: legu.yield,
         roe,
         date: formattedDate,
+        csiCode,
       };
-      console.log(`   成功自建补源 ${cfg.name} (${code}): PE=${pe}, PE百分位=${((pe_percentile || 0) * 100).toFixed(2)}%, PB=${legu.pb}, 股息率=${((legu.yield || 0) * 100).toFixed(2)}%`);
+      console.log(`   成功自建补源 ${cfg.name} (${code}): PE=${pe}, PE百分位=${((pe_percentile || 0) * 100).toFixed(2)}%, PB=${legu.pb ?? '-'}, 股息率=${((legu.yield || 0) * 100).toFixed(2)}%`);
     } catch (e) {
       console.error(`❌ 自建补源 ${cfg.name} (${code}) 失败:`, e.message);
     }
@@ -393,14 +456,15 @@ async function main() {
     let raw = byCode.get(cfg.index_code);
     if (cfg.source === 'csindex' && csindexData[cfg.index_code]) {
       const data = csindexData[cfg.index_code];
+      // PE/百分位/日期用官网剔除亏损口径；PB/股息率/ROE 优先乐咕，缺失则回退蛋卷原值
       raw = {
         index_code: cfg.index_code,
         pe: data.pe,
-        pb: data.pb,
+        pb: data.pb ?? raw?.pb ?? null,
         pe_percentile: data.pe_percentile,
-        pb_percentile: null,
-        roe: data.roe,
-        yeild: data.yeild,
+        pb_percentile: raw?.pb_percentile ?? null,
+        roe: data.roe ?? raw?.roe ?? null,
+        yeild: data.yeild ?? raw?.yeild ?? null,
         date: data.date,
       };
     }
@@ -413,12 +477,17 @@ async function main() {
     const ep = epOf(raw?.pe);
     const epAdj = adjustedEp(raw, cfg);
 
-    // 优先场内价格，其次场外单位净值
-    let fundPriceInfo = fundPrices[cfg.fundCode];
-    let priceType = '场内';
-    let priceCode = cfg.fundCode;
-    if (!fundPriceInfo && cfg.fundFcode) {
-      fundPriceInfo = fundPrices['f_' + cfg.fundFcode];
+    // 价格优先场内：有场内代码则只用场内价（避免场外联接净值 1.x 元与场内 3~4 元量级差异误导），
+    // 场内缺失展示 NA；仅当指数本身没有场内基金（fundCode 为空）时才取场外单位净值。
+    let fundPriceInfo = null;
+    let priceType = null;
+    let priceCode = null;
+    if (cfg.fundCode) {
+      fundPriceInfo = fundPrices[cfg.fundCode] || null;
+      priceType = '场内';
+      priceCode = cfg.fundCode;
+    } else if (cfg.fundFcode) {
+      fundPriceInfo = fundPrices['f_' + cfg.fundFcode] || null;
       priceType = '场外';
       priceCode = cfg.fundFcode;
     }
