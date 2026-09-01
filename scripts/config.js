@@ -21,7 +21,7 @@ module.exports = {
 
     // ============ 市盈率法板块（博格公式，盈利快速成长/宽基/消费医药） ============
     { index_code: "SH000300", method: "PE", section: "市盈率法", name: "沪深300", fundCode: "510310", fundFcode: "021832", source: "csindex" },
-    { index_code: "SH000905", method: "PE", section: "市盈率法", hold: true, name: "中证500", fundCode: "510580", fundFcode: "011964", source: "csindex" },
+    { index_code: "SH000905", method: "PE", section: "市盈率法", hold: true, name: "中证500", fundCode: "161017", fundFcode: "011964", source: "csindex" },
     { index_code: "SH000852", method: "PE", section: "市盈率法", name: "中证1000", fundCode: "159633", fundFcode: "024091", source: "csindex" },
     { index_code: "SZ399006", method: "PE", section: "市盈率法", name: "创业板指", fundCode: "159915", fundFcode: "161022" },
     { index_code: "SH000688", method: "PE", section: "市盈率法", name: "科创50", fundCode: "588280", fundFcode: "021484", source: "csindex" },
