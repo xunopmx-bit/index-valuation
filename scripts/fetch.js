@@ -470,7 +470,9 @@ async function main() {
           pe = latest.peg;
           tradeDate = latest.tradeDate;
           
-          const historySlice = peList.slice(-1220).map(item => item.peg);
+          // 历史分位窗口：近 N 个交易日（config.percentileWindow，默认 2440≈10年）
+          const windowDays = config.percentileWindow || 2440;
+          const historySlice = peList.slice(-windowDays).map(item => item.peg);
           const count = historySlice.filter(v => v < pe).length;
           pe_percentile = historySlice.length > 0 ? count / historySlice.length : null;
         }
@@ -508,7 +510,17 @@ async function main() {
   }));
 
   const byCode = new Map(items.map((i) => [i.index_code, i]));
-  const market = marketStar(items, config.starBenchmark);
+
+  // 整体市场星级：基准指数优先用官网10年窗口百分位（与螺丝钉口径可比），
+  // 官网无数据（如蛋卷独有指数）回退蛋卷 pe_percentile。
+  const benchmarkPcts = config.starBenchmark
+    .map((c) => {
+      if (csindexData[c]) return csindexData[c].pe_percentile;
+      return byCode.get(c)?.pe_percentile;
+    })
+    .filter((p) => p != null);
+  const avgPct = benchmarkPcts.length ? benchmarkPcts.reduce((a, b) => a + b, 0) / benchmarkPcts.length : null;
+  const market = avgPct != null ? { star: starFromPercentile(avgPct), avgPercentile: avgPct } : null;
 
   const results = [];
   for (const cfg of config.indexes) {
