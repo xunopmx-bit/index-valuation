@@ -511,16 +511,77 @@ async function main() {
 
   const byCode = new Map(items.map((i) => [i.index_code, i]));
 
-  // 整体市场星级：基准指数优先用官网10年窗口百分位（与螺丝钉口径可比），
-  // 官网无数据（如蛋卷独有指数）回退蛋卷 pe_percentile。
-  const benchmarkPcts = config.starBenchmark
-    .map((c) => {
-      if (csindexData[c]) return csindexData[c].pe_percentile;
-      return byCode.get(c)?.pe_percentile;
-    })
-    .filter((p) => p != null);
-  const avgPct = benchmarkPcts.length ? benchmarkPcts.reduce((a, b) => a + b, 0) / benchmarkPcts.length : null;
-  const market = avgPct != null ? { star: starFromPercentile(avgPct), avgPercentile: avgPct } : null;
+  // ===== 整体市场星级：复刻螺丝钉星级算法 =====
+  // 螺丝钉星级与「中证全指(000985)」剔除亏损 PE 相关性最强，且为对数非线性映射：
+  //   一星 ≈ 市场估值波动 20%（下行 3.9星跌20%→4.9星），即每 1 星 ≈ PE × step(1.25)
+  //   星级 s = 5 - ln(PE / refPe) / ln(step)
+  // 参考 PE(14.6) 对应 5 星。锚点验证：2024-02-05 PE=11.94→5.9星、2026-08-31 PE=18.27→4星、
+  // 2026-05-12 PE=19.79→3.6星、2015-06 PE=31.64→1.5星，均吻合螺丝钉公开星级。
+  async function fetchMarketStar() {
+    const model = config.starModel || { indexCode: '000985', refPe: 14.6, step: 1.25 };
+    try {
+      const res = await fetch(`https://www.csindex.com.cn/csindex-home/perf/indexCsiDsPe?indexCode=${model.indexCode}`);
+      if (res.ok) {
+        const j = await res.json();
+        const list = j.data;
+        if (Array.isArray(list) && list.length > 0) {
+          list.sort((a, b) => a.tradeDate.localeCompare(b.tradeDate));
+          const latest = list[list.length - 1];
+          const pe = Number(latest.peg);
+          const dateRaw = latest.tradeDate; // YYYYMMDD
+          if (Number.isFinite(pe) && pe > 0) {
+            // 全历史百分位（螺丝钉参考长期估值区间）
+            const allPe = list.map((x) => x.peg).filter((v) => v != null);
+            const histPct = allPe.length ? allPe.filter((v) => v < pe).length / allPe.length : null;
+            // 绝对对数映射
+            const rawStar = 5 - Math.log(pe / model.refPe) / Math.log(model.step);
+            const star = Math.max(1, Math.min(6, rawStar));
+            const windowDays = config.percentileWindow || 2440;
+            const recentSlice = allPe.slice(-windowDays);
+            const recentPct = recentSlice.length ? recentSlice.filter((v) => v < pe).length / recentSlice.length : histPct;
+            return {
+              star: Math.round(star * 10) / 10, // 保留1位小数（螺丝钉星级习惯如 5.9/4.0/3.6）
+              pe,
+              refPe: model.refPe,
+              fullHistPercentile: histPct,
+              recentPercentile: recentPct,
+              date: `${dateRaw.slice(4, 6)}-${dateRaw.slice(6, 8)}`,
+              index: config.starModel?.indexName || '中证全指(000985)',
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.warn(`⚠️ 中证全指星级抓取失败: ${e.message}`);
+    }
+    return null;
+  }
+
+  // 市场星级：优先中证全指绝对映射；抓取失败回退基准指数百分位线性映射（含官网口径优先）
+  const marketStarData = await fetchMarketStar();
+  let market;
+  if (marketStarData) {
+    market = {
+      star: marketStarData.star,
+      pe: marketStarData.pe,
+      avgPercentile: marketStarData.recentPercentile,   // 前端兼容字段
+      model: '中证全指官网剔除亏损PE绝对映射',
+      basis: marketStarData.index,
+      refPe: marketStarData.refPe,
+      fullHistPercentile: marketStarData.fullHistPercentile,
+    };
+  } else {
+    const benchmarkPcts = config.starBenchmark
+      .map((c) => {
+        if (csindexData[c]) return csindexData[c].pe_percentile;
+        return byCode.get(c)?.pe_percentile;
+      })
+      .filter((p) => p != null);
+    const avgPct = benchmarkPcts.length ? benchmarkPcts.reduce((a, b) => a + b, 0) / benchmarkPcts.length : null;
+    market = avgPct != null
+      ? { star: starFromPercentile(avgPct), avgPercentile: avgPct, model: '备用：沪深300/500/1000等权百分位(回退)' }
+      : null;
+  }
 
   const results = [];
   for (const cfg of config.indexes) {
@@ -653,7 +714,12 @@ async function main() {
     market: {
       star: market?.star ?? null,
       avgPercentile: market?.avgPercentile ?? null,
-      benchmark: config.starBenchmark,
+      benchmark: market?.model ? market.basis : config.starBenchmark,
+      model: market?.model ?? null,
+      basis: market?.basis ?? null,
+      marketPe: market?.pe ?? null,
+      refPe: market?.refPe ?? null,
+      fullHistPercentile: market?.fullHistPercentile ?? null,
     },
     buffett: buffett || null, // 巴菲特指标：{ratio, totalCapYiyuan, gdpYear, gdpYiyuan, gdpYoY}
     calibration: {

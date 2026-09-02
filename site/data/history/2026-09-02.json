@@ -1,20 +1,21 @@
 {
-  "generated_at": "2026-09-02T06:07:06.568Z",
+  "generated_at": "2026-09-02T07:17:23.349Z",
   "date": "2026-09-02",
   "dataDate": "09-01",
   "source": "danjuanfunds.com/djapi/index_eva/dj",
   "market": {
-    "star": 2,
-    "avgPercentile": 0.7218579234972679,
-    "benchmark": [
-      "SH000300",
-      "SH000905",
-      "SH000852"
-    ]
+    "star": 4,
+    "avgPercentile": 0.6729508196721311,
+    "benchmark": "中证全指(000985)",
+    "model": "中证全指官网剔除亏损PE绝对映射",
+    "basis": "中证全指(000985)",
+    "marketPe": 18.08,
+    "refPe": 14.6,
+    "fullHistPercentile": 0.6471838469713072
   },
   "buffett": {
-    "ratio": 81.51,
-    "totalCapYiyuan": 1142619,
+    "ratio": 81.15,
+    "totalCapYiyuan": 1137667,
     "gdpYear": "2025-12-01",
     "gdpYiyuan": 1401879,
     "gdpYoY": 5

@@ -264,8 +264,10 @@ function renderMeta() {
   circle.style.background = starColor(star);
   document.getElementById('starNum').textContent = star == null ? '-' : star;
   document.getElementById('starText').innerHTML =
-    `整体市场：<strong style="color:${starColor(star)}">${star == null ? '-' : star + ' 星'}</strong>（基准百分位 ${(d.market.avgPercentile * 100).toFixed(1)}%）<br>` +
-    starText(star) + '（基准：沪深300 + 中证500 + 中证1000）';
+    `整体市场：<strong style="color:${starColor(star)}">${star == null ? '-' : star + ' 星'}</strong>` +
+    (d.market.marketPe ? `（中证全指PE ${d.market.marketPe}${d.market.refPe ? '，参考5星PE ' + d.market.refPe : ''}）` : '') +
+    '<br>' +
+    starText(star) + '（星级基于<b>中证全指</b>官网剔除亏损PE）';
 
   // 巴菲特指标卡片（A股总市值 / 年度GDP）
   const bCard = document.getElementById('buffettCard');
