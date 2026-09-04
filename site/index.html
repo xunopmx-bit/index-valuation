@@ -397,7 +397,7 @@ function renderContent() {
           const scName = { green: '低估', yellow: '正常', red: '高估' }[i.screwColor] || i.screwColor;
           statusHtml += `<span class="screw-flag" title="螺丝钉口径(剔除亏损)判断为【${scName}】，与本看板不一致。螺丝钉PE=${i.screwPe != null ? i.screwPe.toFixed(2) : '-'}">螺:${scName}</span>`;
         } else if (i.screwPe != null) {
-          statusHtml += `<span class="screw-ok" title="螺丝钉口径(剔除亏损)PE=${i.screwPe.toFixed(2)}，与本看板判断一致">螺${i.screwPe != null ? ':' + i.screwPe.toFixed(1) : ''}</span>`;
+          statusHtml += `<span class="screw-ok" title="螺丝钉口径(剔除亏损)模拟PE=${i.screwPe.toFixed(2)}（本行系统PE=${i.pe != null ? i.pe.toFixed(2) : '-'}）。非EP板块仅展示螺丝钉口径参考值，颜色判断以本看板口径为准">螺:${i.screwPe.toFixed(1)}</span>`;
         }
 
         html += `<tr${cls}>
