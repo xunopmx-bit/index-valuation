@@ -77,7 +77,7 @@ module.exports = {
     { index_code: "HKHSSCNE", method: "PE", section: "海外市场", name: "新经济", fundCode: "513320" },
     { index_code: "CSIH30094", method: "PE", section: "市盈率法", name: "消费红利", fundFcode: "008928", source: "csindex" },
     { index_code: "931139", method: "PE", section: "市盈率法", hold: true, name: "消费50", fundCode: "515650", fundFcode: "014208", source: "csindex" },
-    { index_code: "930743", method: "PE", section: "市盈率法", hold: true, name: "生物科技", fundCode: "159837", fundFcode: "011117", source: "csindex" },
+    { index_code: "930743", method: "PE", section: "市盈率法", name: "生物科技", fundCode: "159837", fundFcode: "011117", source: "csindex" },
     { index_code: "931187", method: "PE", section: "市盈率法", hold: true, name: "科技100", fundCode: "515580", fundFcode: "008399", source: "csindex" },
     { index_code: "930050", method: "PE", section: "市盈率法", hold: true, name: "中证A500", fundCode: "159338", fundFcode: "159338", source: "csindex" },
     { index_code: "000698", method: "PE", section: "市盈率法", hold: true, name: "科创100", fundCode: "588030", fundFcode: "588030", source: "csindex" },
