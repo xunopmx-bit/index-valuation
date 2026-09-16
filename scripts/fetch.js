@@ -599,6 +599,9 @@ async function main() {
         yeild: data.yeild ?? raw?.yeild ?? null,
         date: data.date,
       };
+    } else if (cfg.source === 'csindex' && raw) {
+      // 官网补源失败：静默回退蛋卷（含亏损口径）会导致与螺丝钉校准因子失真，必须显式警告
+      console.warn(`⚠️ ${cfg.name}(${cfg.index_code}) 官网补源缺失，回退蛋卷口径(PE=${raw.pe})，该校准因子当日可能失真`);
     }
     const method = cfg.method;
     const percentile = raw
