@@ -6,6 +6,9 @@ on:
     # UTC 周日~周四 22:00 = 北京周一~周五 06:00，覆盖周末后首个交易日
     - cron: '0 22 * * 0-4'
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: write
