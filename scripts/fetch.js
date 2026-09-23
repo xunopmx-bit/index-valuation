@@ -128,16 +128,63 @@ function sortSection(items) {
   });
 }
 
-// 星级评分：基于历史百分位映射到 1~5 星（半星粒度）
-// 低估（<20%）= 4-5星，正常（20-80%）= 3星，高估（>80%）= 1-2星
+// 星级评分：基于历史百分位映射到 1~5 星（半星粒度，备用大盘星级用）
 function starFromPercentile(p) {
   if (p === null || p === undefined) return null;
-  // p=0 → 5星，p=1 → 1星，线性映射到 0.5 星粒度
   const star = 5 - p * 4; // 0~1 → 5~1
-  // 半星取整：0.25 以下舍，0.25-0.75 进半星，以上进整星
   let rounded = Math.round(star * 2) / 2;
   rounded = Math.max(1, Math.min(5, rounded));
   return rounded;
+}
+
+// 单品种星级评分：覆盖 1~5 星完整梯队，与红黄绿颜色状态严格对应
+// 绿色(低估可投) -> 4 ~ 5 星 (4, 4.5, 5)
+// 黄色(正常持有) -> 2.5 ~ 3.5 星 (2.5, 3, 3.5)
+// 红色(高估止盈) -> 1 ~ 2 星 (1, 1.5, 2)
+function calculateItemStar({ color, method, percentile, screwPe, pe, epAdj, epDiscount }) {
+  if (color === 'gray' || (!pe && !screwPe && percentile == null)) return null;
+
+  const effPe = screwPe || pe;
+  let ep = null;
+  if (method === 'EP' && effPe) {
+    ep = 1 / effPe;
+    if (epDiscount) ep *= epDiscount;
+  } else if (epAdj != null) {
+    ep = epAdj;
+  }
+
+  const p = percentile != null ? percentile : 0.5;
+
+  if (color === 'green') {
+    // 绿区：4 ~ 5 星
+    if (method === 'EP' && ep != null) {
+      if (ep >= 0.11) return 5;       // 极度低估 (红利低波等)
+      if (ep >= 0.104) return 4.5;    // 深度低估 (沪港深红利低波等)
+      return 4;                       // 标准低估 (优选300等)
+    } else {
+      if (p <= 0.10) return 5;        // 消费50等历史极低位
+      if (p <= 0.20) return 4.5;      // 白酒、主要消费等
+      return 4;                       // 医疗、生物科技等
+    }
+  } else if (color === 'yellow') {
+    // 黄区：2.5 ~ 3.5 星
+    if (method === 'EP' && ep != null) {
+      if (ep >= 0.085) return 3.5;    // 正常偏低 (上证红利、基本面50等)
+      if (ep >= 0.070) return 3;      // 正常中枢 (50AH优选、恒指、H股、上证50等)
+      return 2.5;                     // 正常偏高 (央视50、上证180等)
+    } else {
+      if (p <= 0.40) return 3.5;      // 正常偏低 (证券行业等)
+      if (p <= 0.65) return 3;        // 正常中枢 (银行行业、科技100等)
+      return 2.5;                     // 正常偏高 (中证500、中证1000、红利机会等)
+    }
+  } else if (color === 'red') {
+    // 红区：1 ~ 2 星
+    if (effPe >= 70 || p >= 0.95) return 1;    // 极度泡沫 (科创50 等)
+    if (effPe >= 35 || p >= 0.88) return 1.5;  // 深度高估
+    return 2;                                 // 偏高风险 (纳指100 等)
+  }
+
+  return 3;
 }
 
 // 整体市场星级：基准指数百分位加权平均（等权）
@@ -607,8 +654,8 @@ async function main() {
     const percentile = raw
       ? methodPercentile(raw, method)
       : null;
-    const color = raw ? judgeColor(raw, method, cfg) : 'gray';
-    const star = raw ? starFromPercentile(percentile) : null;
+    let color = raw ? judgeColor(raw, method, cfg) : 'gray';
+    let star = null;
     const ep = epOf(raw?.pe);
     const epAdj = adjustedEp(raw, cfg);
 
@@ -667,6 +714,8 @@ async function main() {
         color = screwColor;
       }
     }
+
+    star = calculateItemStar({ color, method, percentile, screwPe, pe: raw?.pe, epAdj, epDiscount: cfg.epDiscount });
 
     results.push({
       index_code: cfg.index_code,
