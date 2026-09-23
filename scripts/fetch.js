@@ -664,6 +664,8 @@ async function main() {
           let sEp = 1 / screwPe;
           if (cfg.epDiscount) sEp *= cfg.epDiscount;
           screwColor = sEp >= config.epThreshold.buy ? 'green' : (sEp >= config.epThreshold.sell ? 'yellow' : 'red');
+          // 方案 B：螺丝钉校准口径生效为核心状态颜色
+          color = screwColor;
         }
       }
     }

@@ -287,7 +287,8 @@ function renderMeta() {
   legend.innerHTML =
     `<span><span class="dot" style="background:var(--green)"></span>低估 <20% · 适合定投</span>` +
     `<span><span class="dot" style="background:var(--yellow)"></span>正常 20-80% · 持有/暂停</span>` +
-    `<span><span class="dot" style="background:var(--red)"></span>高估 >80% · 止盈</span>`;
+    `<span><span class="dot" style="background:var(--red)"></span>高估 >80% · 止盈</span>` +
+    `<span style="margin-left:auto;color:var(--text-muted);font-size:12px;">* 标有 * 号数值已按银行螺丝钉口径校准（悬停查看官方源）</span>`;
 }
 
 function renderToolbar() {
@@ -335,10 +336,11 @@ function renderContent() {
   // 股票板块渲染（当 filter 不是只看 bond 时）
   if (filters !== 'bond') {
     const visible = d.indexes.filter(i => {
+      const effColor = i.screwColor || i.color;
       if (filters === 'hold') return i.hold;
-      if (filters === 'green') return i.color === 'green';
-      if (filters === 'yellow') return i.color === 'yellow';
-      if (filters === 'red') return i.color === 'red';
+      if (filters === 'green') return effColor === 'green';
+      if (filters === 'yellow') return effColor === 'yellow';
+      if (filters === 'red') return effColor === 'red';
       return true;
     });
 
@@ -365,13 +367,16 @@ function renderContent() {
       const isPB = sec === '市净率法';
 
       html += `<div class="section">
-        <div class="section-title">${sec} <span class="hint">${hint}</span></div>
+        <div class="section-title">
+          ${sec}
+          <span class="hint">${hint}</span>
+        </div>
         <div class="table-wrap"><table>
           <thead><tr>
             <th>指数</th>
             <th>前日收盘净值</th>
-            ${isEP ? '<th>盈利收益率</th><th>PE</th>' : '<th>PE</th>'}
-            ${isPB ? '' : '<th>PB</th>'}
+            ${isEP ? '<th>盈利收益率</th><th title="已按银行螺丝钉口径校准">市盈率*</th>' : '<th title="已按银行螺丝钉口径校准">市盈率*</th>'}
+            ${isPB ? '' : '<th title="已按银行螺丝钉口径校准">市净率*</th>'}
             <th>股息率</th><th>ROE</th>
             <th>百分位</th>
             <th>状态</th><th>星级</th>
@@ -382,29 +387,54 @@ function renderContent() {
         const cls = i.hold ? ' class="hold-row"' : '';
         const badge = i.hold ? '<span class="hold-badge">持仓</span>' : '';
         const pct = i.percentile != null ? Math.round(i.percentile * 100) + '%' : '-';
+
+        // 方案 B：主数据直接对齐螺丝钉校准口径（若无校准因子则展示原始值）
+        const effPe = i.screwPe != null ? i.screwPe : i.pe;
+        const effPb = i.screwPb != null ? i.screwPb : i.pb;
+        const effColor = i.screwColor || i.color;
+        const colorName = { green: '低估', yellow: '正常', red: '高估', gray: '无数据' }[effColor] || effColor;
+
+        // 盈利收益率（EP 板块根据螺丝钉校准 PE 计算）
+        let epHtml = '-';
         const epBuy = d.thresholds?.buy || 0.10;
-        const epHtml = i.epAdj != null
-          ? `<span class="${i.epAdj >= epBuy ? 'ep-hi' : ''}" title="调整后盈利收益率（港股打9折）">${(i.epAdj * 100).toFixed(2)}%${i.epAdj >= epBuy ? ' ✓' : ''}</span>`
-          : '-';
-        const colorName = { green: '低估', yellow: '正常', red: '高估', gray: '无数据' }[i.color] || i.color;
+        if (isEP && effPe != null) {
+          let sEp = 1 / effPe;
+          if (i.epDiscount) sEp *= i.epDiscount;
+          else if (i.epAdj != null && i.ep != null) sEp *= (i.epAdj / i.ep);
+          epHtml = `<span class="${sEp >= epBuy ? 'ep-hi' : ''}" title="盈利收益率（按螺丝钉校准PE计算）">${(sEp * 100).toFixed(2)}%${sEp >= epBuy ? ' ✓' : ''}</span>`;
+        } else if (i.epAdj != null) {
+          epHtml = `<span class="${i.epAdj >= epBuy ? 'ep-hi' : ''}" title="调整后盈利收益率">${(i.epAdj * 100).toFixed(2)}%${i.epAdj >= epBuy ? ' ✓' : ''}</span>`;
+        }
+
+        // PE 单元格（直接展示螺丝钉校准值，悬停显示官方源）
+        let peHtml = '-';
+        if (effPe != null) {
+          const peVal = Number(effPe).toFixed(2);
+          const hasCal = i.screwPe != null && i.pe != null && Math.abs(i.screwPe - i.pe) > 0.05;
+          const peTitle = hasCal ? `螺丝钉校准PE: ${peVal} (官方源: ${Number(i.pe).toFixed(2)})` : `市盈率: ${peVal}`;
+          peHtml = `<span title="${peTitle}">${peVal}${hasCal ? '<sup style="color:var(--accent);font-size:10px;margin-left:2px;">*</sup>' : ''}</span>`;
+        }
+
+        // PB 单元格（直接展示螺丝钉校准值，悬停显示官方源）
+        let pbHtml = '-';
+        if (effPb != null) {
+          const pbVal = Number(effPb).toFixed(2);
+          const hasCal = i.screwPb != null && i.pb != null && Math.abs(i.screwPb - i.pb) > 0.05;
+          const pbTitle = hasCal ? `螺丝钉校准PB: ${pbVal} (官方源: ${Number(i.pb).toFixed(2)})` : `市净率: ${pbVal}`;
+          pbHtml = `<span title="${pbTitle}">${pbVal}${hasCal ? '<sup style="color:var(--accent);font-size:10px;margin-left:2px;">*</sup>' : ''}</span>`;
+        }
+
         const navHtml = i.closePrice != null
           ? `<span class="nav-val" title="${i.priceType || '场内'}: ${i.priceCode || '-'} (更新: ${i.priceDate || '-'})">${Number(i.closePrice).toFixed(4)}</span><span class="price-type-tag">${i.priceType || '场内'}</span>`
           : '<span class="missing">-</span>';
 
-        // 螺丝钉口径分歧标记：screwColor 与系统 color 不一致时高亮提示
-        let statusHtml = `<span class="color-badge color-${i.color}">${colorName}</span>`;
-        if (i.screwColor && i.screwColor !== i.color) {
-          const scName = { green: '低估', yellow: '正常', red: '高估' }[i.screwColor] || i.screwColor;
-          statusHtml += `<span class="screw-flag" title="螺丝钉口径(剔除亏损)判断为【${scName}】，与本看板不一致。螺丝钉PE=${i.screwPe != null ? i.screwPe.toFixed(2) : '-'}">螺:${scName}</span>`;
-        } else if (i.screwPe != null) {
-          statusHtml += `<span class="screw-ok" title="螺丝钉口径(剔除亏损)模拟PE=${i.screwPe.toFixed(2)}（本行系统PE=${i.pe != null ? i.pe.toFixed(2) : '-'}）。非EP板块仅展示螺丝钉口径参考值，颜色判断以本看板口径为准">螺:${i.screwPe.toFixed(1)}</span>`;
-        }
+        let statusHtml = `<span class="color-badge color-${effColor}">${colorName}</span>`;
 
         html += `<tr${cls}>
           <td><span class="index-name">${i.name}</span>${badge}</td>
           <td>${navHtml}</td>
-          ${isEP ? `<td>${epHtml}</td><td>${i.pe != null ? i.pe.toFixed(2) : '-'}</td>` : `<td>${i.pe != null ? i.pe.toFixed(2) : '-'}</td>`}
-          ${isPB ? '' : `<td>${i.pb != null ? i.pb.toFixed(2) : '-'}</td>`}
+          ${isEP ? `<td>${epHtml}</td><td>${peHtml}</td>` : `<td>${peHtml}</td>`}
+          ${isPB ? '' : `<td>${pbHtml}</td>`}
           <td>${i.yield != null ? (i.yield * 100).toFixed(2) + '%' : '-'}</td>
           <td>${i.roe != null ? (i.roe * 100).toFixed(1) + '%' : '-'}</td>
           <td>${pct}</td>
