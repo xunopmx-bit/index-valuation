@@ -30,7 +30,7 @@ module.exports = {
     { index_code: "SZ399330", method: "PE", section: "市盈率法", name: "深证100", fundCode: "159901", fundFcode: "161227" },
     { index_code: "SZ399317", method: "PE", section: "市盈率法", name: "国证A指", fundFcode: "005414" },
     { index_code: "CSPSADRP", method: "PE", section: "市盈率法", hold: true, name: "红利机会", fundCode: "501029", fundFcode: "501029" },
-    { index_code: "SZ399701", method: "PE", section: "市盈率法", hold: true, name: "基本面60", fundCode: "159916", fundFcode: "530015", source: "csindex" },
+    { index_code: "SZ399701", method: "PE", section: "市盈率法", name: "基本面60", fundCode: "159916", fundFcode: "530015" },
     { index_code: "SZ399702", method: "PE", section: "市盈率法", name: "基本面120", fundCode: "159910", fundFcode: "070023", source: "csindex" },
     { index_code: "SZ399997", method: "PE", section: "市盈率法", hold: true, name: "中证白酒", fundCode: "161725", fundFcode: "161725", source: "csindex" },
     { index_code: "SZ399989", method: "PE", section: "市盈率法", hold: true, name: "中证医疗", fundCode: "512170", fundFcode: "001417", source: "csindex" },
