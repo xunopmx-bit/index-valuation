@@ -78,7 +78,7 @@
   .toolbar button { padding: 6px 14px; border: 1px solid var(--border); border-radius: 8px; background: #fff; font-size: 13px; cursor: pointer; color: var(--text); }
   .toolbar button.active { background: #111827; color: #fff; border-color: #111827; }
   .toolbar .count { font-size: 12px; color: var(--muted); }
-  .date-select {
+  .date-select, .sort-select {
     padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px;
     font-size: 13px; background: #fff; color: var(--text); cursor: pointer;
   }
@@ -193,7 +193,7 @@
 </main>
 <footer id="footer"></footer>
 <script>
-const state = { filter: 'all', data: null, dates: null, selectedDate: null };
+const state = { filter: 'all', sortBy: 'star', data: null, dates: null, selectedDate: null };
 
 async function load() {
   try {
@@ -310,6 +310,11 @@ function renderToolbar() {
     .join('');
   toolbar.innerHTML =
     `<select class="date-select" onchange="selectDate(this.value)" title="选择历史日期回溯"><option value="">选择日期...</option>${dateOpts}</select>` +
+    `<select class="sort-select" onchange="setSort(this.value)" title="选择板块内排序方式">
+      <option value="star"${state.sortBy === 'star' ? ' selected' : ''}>⭐ 按星级排序 (默认)</option>
+      <option value="hold"${state.sortBy === 'hold' ? ' selected' : ''}>💼 按持仓优先</option>
+      <option value="name"${state.sortBy === 'name' ? ' selected' : ''}>🔤 按名称排序</option>
+    </select>` +
     filters.map(([k, label]) =>
       `<button class="${state.filter === k ? 'active' : ''}" onclick="setFilter('${k}')">${label}</button>`
     ).join('') + `<span class="count">持仓 ${holds.length} 只</span>`;
@@ -319,6 +324,40 @@ function setFilter(f) {
   state.filter = f;
   renderToolbar();
   renderContent();
+}
+
+function setSort(s) {
+  state.sortBy = s;
+  renderToolbar();
+  renderContent();
+}
+
+function sortItems(items, sortBy) {
+  return items.slice().sort((a, b) => {
+    if (sortBy === 'hold') {
+      const aHold = a.hold ? 1 : 0;
+      const bHold = b.hold ? 1 : 0;
+      if (bHold !== aHold) return bHold - aHold;
+      return (b.star ?? 0) - (a.star ?? 0);
+    }
+    if (sortBy === 'name') {
+      return (a.name || '').localeCompare(b.name || '', 'zh-CN');
+    }
+    // 默认按星级降序
+    const diff = (b.star ?? 0) - (a.star ?? 0);
+    if (diff !== 0) return diff;
+
+    // 星级相同时：盈利收益率法板块 EP 越高越靠前
+    if (a.section === '盈利收益率法' && b.section === '盈利收益率法') {
+      const aEffPe = a.screwPe || a.pe;
+      const bEffPe = b.screwPe || b.pe;
+      const aEp = aEffPe ? 1 / aEffPe : 0;
+      const bEp = bEffPe ? 1 / bEffPe : 0;
+      return bEp - aEp;
+    }
+    // 其他板块百分位越低越靠前
+    return (a.percentile ?? 0.5) - (b.percentile ?? 0.5);
+  });
 }
 
 function methodCell(method) {
@@ -359,7 +398,7 @@ function renderContent() {
     };
 
     for (const sec of d.sections) {
-      const items = groups[sec];
+      const items = sortItems(groups[sec] || [], state.sortBy || 'star');
       if (!items || !items.length) continue;
 
       const hint = sectionHints[sec] || '';
