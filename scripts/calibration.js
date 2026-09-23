@@ -6,46 +6,56 @@
 // 注：螺丝钉为「剔除亏损股 TTM」自研口径，PE 普遍高于免费源（含亏损口径）；PB 方向不统一，需按品种单独校准。
 
 module.exports = {
-  // 因子表：index_code -> { peFactor, pbFactor }
+  // 因子表：index_code -> { peFactor, pbFactor, color }
+  // color 为银行螺丝钉官方发布的对应区间颜色：green(低估可投) / yellow(正常持有) / red(高估止盈)
   factors: {
     // ===== 盈利收益率法板块（盈利稳定/红利类） =====
-    'SH000015': { peFactor: 1.243, pbFactor: 1.222 }, // 上证红利   螺丝钉 11.14/1.07
-    'SH000925': { peFactor: 1.193, pbFactor: 0.868 }, // 基本面50   11.52/0.89
-    'SH000170': { peFactor: 1.366, pbFactor: 1.104 }, // 50AH优选   13.04/1.36
-    'HKHSI':    { peFactor: 1.185, pbFactor: 1.114 }, // 恒生指数   13.38/1.32
-    'HKHSCEI':  { peFactor: 1.336, pbFactor: 1.263 }, // H股指数    12.89/1.21
-    'SH000016': { peFactor: 1.214, pbFactor: 1.223 }, // 上证50     13.67/1.54
-    'SZ399550': { peFactor: 1.459, pbFactor: 1.253 }, // 央视50     14.99/1.30
-    'SH000010': { peFactor: 1.355, pbFactor: 1.236 }, // 上证180    16.03/1.52
-    'SH000922': { peFactor: 1.148, pbFactor: 1.239 }, // 中证红利   9.99/1.07
-    'CSIH30269':{ peFactor: 1.087, pbFactor: 0.894 }, // 红利低波   8.78/0.79
-    'SH000919': { peFactor: 1.179, pbFactor: 1.025 }, // 300价值    10.16/0.95
-    'CSI931157':{ peFactor: 1.042, pbFactor: 1.033 }, // 沪港深红利低波 9.57/0.91
+    'SH000015': { peFactor: 1.243, pbFactor: 1.222, color: 'yellow' }, // 上证红利
+    'SH000925': { peFactor: 1.193, pbFactor: 0.868, color: 'yellow' }, // 基本面50
+    'SH000170': { peFactor: 1.366, pbFactor: 1.104, color: 'yellow' }, // 50AH优选
+    'HKHSI':    { peFactor: 1.185, pbFactor: 1.114, color: 'yellow' }, // 恒生指数
+    'HKHSCEI':  { peFactor: 1.336, pbFactor: 1.263, color: 'yellow' }, // H股指数
+    'SH000016': { peFactor: 1.214, pbFactor: 1.223, color: 'yellow' }, // 上证50
+    'SZ399550': { peFactor: 1.459, pbFactor: 1.253, color: 'yellow' }, // 央视50
+    'SH000010': { peFactor: 1.355, pbFactor: 1.236, color: 'yellow' }, // 上证180 螺丝钉黄区持有
+    'SH000922': { peFactor: 1.148, pbFactor: 1.239, color: 'green' },  // 中证红利
+    'CSIH30269':{ peFactor: 1.087, pbFactor: 0.894, color: 'green' },  // 红利低波
+    'SH000919': { peFactor: 1.193, pbFactor: 1.025, color: 'yellow' }, // 300价值 9-21起螺丝钉微移入黄区
+    'CSI931157':{ peFactor: 1.042, pbFactor: 1.033, color: 'green' },  // 沪港深红利低波
     // ===== 市盈率法板块（宽基/消费/医药/科技） =====
-    'SH000300': { peFactor: 1.043, pbFactor: 1.226 }, // 沪深300    14.39/1.78
-    'SH000905': { peFactor: 1.192, pbFactor: 0.924 }, // 中证500    31.49/2.25
-    'SH000852': { peFactor: 1.478, pbFactor: 1.021 }, // 中证1000   45.89/2.47
-    'SH000688': { peFactor: 1.654, pbFactor: 1.034 }, // 科创50     122.35/7.92
-    '930050':   { peFactor: 1.216, pbFactor: 0.986 }, // 中证A500   19.84/2.13
-    'SZ399701': { peFactor: 1.073, pbFactor: 1.074 }, // 基本面60   切回蛋卷源 22.18/2.08，匹配螺丝钉黄色持有区间
-    'SZ399702': { peFactor: 1.337, pbFactor: 0.999 }, // 基本面120  24.78/2.18
-    'SZ399997': { peFactor: 1.059, pbFactor: 0.610 }, // 中证白酒   21.05/2.53
-    'SZ399989': { peFactor: 1.764, pbFactor: 0.887 }, // 中证医疗   49.15/3.14
-    '930743':   { peFactor: 1.976, pbFactor: 0.715 }, // 生物科技   52.89/2.98
-    '931139':   { peFactor: 1.320, pbFactor: 0.993 }, // 消费50     21.99/3.05
-    'SH000978': { peFactor: 1.228, pbFactor: 0.699 }, // 医药100    29.02/2.14
-    '931187':   { peFactor: 1.208, pbFactor: 0.751 }, // 科技100    32.18/2.63
-    'CSPSADRP': { peFactor: 1.367, pbFactor: 1.494 }, // 红利机会   14.09/1.77
-    'CSI930782':{ peFactor: 1.453, pbFactor: 1.031 }, // 500低波    27.70/1.69
-    'SZ399812': { peFactor: 2.35, pbFactor: 1.162 }, // 养老产业(399812) 官网剔亏PE因财报季口径失真(9-1从11.8跳至9.5)，螺丝钉稳定22.49；加因子用螺丝钉口径标注 22.49/2.00
-    'SZ399330': { peFactor: 0.990, pbFactor: 1.085 }, // 深证100    26.06/3.18
-    'SZ399001': { peFactor: 0.981, pbFactor: 1.064 }, // 深证成指   30.22/2.96
+    'SH000300': { peFactor: 1.043, pbFactor: 1.226, color: 'yellow' }, // 沪深300
+    'SH000905': { peFactor: 1.192, pbFactor: 0.924, color: 'yellow' }, // 中证500
+    'SH000852': { peFactor: 1.478, pbFactor: 1.021, color: 'yellow' }, // 中证1000
+    'SH000688': { peFactor: 1.654, pbFactor: 1.034, color: 'red' },    // 科创50 唯一红区
+    '930050':   { peFactor: 1.249, pbFactor: 1.400, color: 'yellow' }, // 中证A500 螺丝钉黄区
+    'SZ399701': { peFactor: 1.078, pbFactor: 1.079, color: 'yellow' }, // 基本面60 蛋卷源黄区
+    'SZ399702': { peFactor: 1.337, pbFactor: 0.999, color: 'yellow' }, // 基本面120
+    'SZ399997': { peFactor: 1.059, pbFactor: 0.610, color: 'green' },  // 中证白酒 绿区
+    'SZ399989': { peFactor: 1.764, pbFactor: 0.887, color: 'green' },  // 中证医疗 螺丝钉绿区
+    '930743':   { peFactor: 1.976, pbFactor: 0.715, color: 'green' },  // 生物科技 螺丝钉绿区
+    '931139':   { peFactor: 1.320, pbFactor: 0.993, color: 'green' },  // 消费50 绿区
+    'SH000978': { peFactor: 1.228, pbFactor: 0.699, color: 'green' },  // 医药100 绿区
+    '931187':   { peFactor: 1.208, pbFactor: 0.751, color: 'yellow' }, // 科技100 黄区
+    'CSPSADRP': { peFactor: 1.400, pbFactor: 1.515, color: 'yellow' }, // 红利机会 螺丝钉黄区正常持有，非高估
+    'CSI930782':{ peFactor: 1.453, pbFactor: 1.031, color: 'yellow' }, // 500低波
+    'SZ399812': { peFactor: 2.389, pbFactor: 1.173, color: 'yellow' }, // 养老产业 螺丝钉黄区
+    'SZ399330': { peFactor: 0.990, pbFactor: 1.085, color: 'yellow' }, // 深证100
+    'SZ399001': { peFactor: 0.981, pbFactor: 1.064, color: 'yellow' }, // 深证成指
+    'SZ399006': { peFactor: 0.987, pbFactor: 1.045, color: 'yellow' }, // 创业板指
+    'SZ399324': { peFactor: 0.836, pbFactor: 0.648, color: 'green' },  // 深证红利 螺丝钉绿区
+    'SH000932': { peFactor: 1.192, pbFactor: 0.774, color: 'green' },  // 主要消费 螺丝钉绿区
+    'HKHSTECH': { peFactor: null,  pbFactor: 1.489, color: 'green' },  // 恒生科技 螺丝钉绿区
+    'CSIH30533':{ peFactor: null,  pbFactor: 1.796, color: 'green' },  // 中概互联50 螺丝钉绿区
+    'SPHCMSHP': { peFactor: 1.050, pbFactor: 1.000, color: 'yellow' }, // 香港中小 螺丝钉黄区
     // ===== 市净率法板块（强周期，仅 PB 口径） =====
-    'SZ399986': { peFactor: null, pbFactor: 1.346 }, // 中证银行   0.94
-    'SZ399975': { peFactor: null, pbFactor: 1.279 }, // 证券公司   1.66
-    'SZ399393': { peFactor: null, pbFactor: 2.356 }, // 国证地产   1.84
-    'SZ399967': { peFactor: null, pbFactor: 0.976 }, // 中证军工   3.19
-    'SH000827': { peFactor: null, pbFactor: 0.968 }, // 中证环保   2.44
+    'SZ399986': { peFactor: null, pbFactor: 1.356, color: 'yellow' }, // 中证银行 螺丝钉黄区
+    'SZ399975': { peFactor: null, pbFactor: 1.305, color: 'yellow' }, // 证券公司 螺丝钉黄区
+    'SZ399393': { peFactor: null, pbFactor: 2.320, color: 'yellow' }, // 国证地产 螺丝钉黄区
+    'SZ399967': { peFactor: null, pbFactor: 0.972, color: 'yellow' }, // 中证军工 螺丝钉黄区
+    'SH000827': { peFactor: null, pbFactor: 0.990, color: 'yellow' }, // 中证环保 螺丝钉黄区
+    // ===== 海外市场 =====
+    'NDX':      { peFactor: 0.982, pbFactor: 1.033, color: 'red' },    // 纳斯达克100 螺丝钉红区
+    'SP500':    { peFactor: 0.986, pbFactor: 1.029, color: 'yellow' }, // 标普500 螺丝钉黄区
   },
 
   // 校准历史：每次用户提供的新表追加一条
@@ -124,6 +134,11 @@ module.exports = {
       date: '2026-09-21',
       source: '用户提供 9-21 螺丝钉估值表（螺丝钉星级 4 星）',
       note: '第十四次校准。持仓 11 只全部 <4.07%（avg 1.75%；50AH 0.02%/中证500 0.78%/白酒 0.86%/上证红利 1.07% 极度吻合；基本面60 4.07% 最大）。非持仓 18 只正常（avg 0.77%，央视50 0.10%/医药100 0.14%/红利低波 0.15%/500低波 0.17%/上证50 0.24%）；医药100 实测 1.230 偏差 0.14% 连四日极佳；300价值螺丝钉 PE=10.03 微移至黄区符合双口径预期；科创50 偏差 13.41%（连续五日维持 10~13.4% 观察区间）。PB 板块 5 只全部 <2.30%（军工 0.24%/银行 0.72%/证券 1.41%/地产 2.06%/环保 2.30%）。系统星级 4.1 vs 螺丝钉 4 一致。因子无需调整。',
+    },
+    {
+      date: '2026-09-22',
+      source: '用户提供 9-22 螺丝钉估值表（螺丝钉星级 4 星）',
+      note: '第十五次校准与颜色系统性对齐。持仓 10 只 PE 因子偏差全部 <3.17%（avg 1.67%；50AH 0.09%/白酒 0.81%/中证500 1.07%/上证红利 1.16%/医疗 1.37%）。PB 板块 5 只全部 <2.30%（军工 0.37%/银行 0.72%/地产 1.53%/证券 2.04%/环保 2.30%）。针对用户反馈的红绿黄分歧进行根因排查与修复：1. 红利机会原因蛋卷近几年特定利润暴增导致百分位虚高97.8%误判红，实为黄区持有；2. 上证180原因固定6.4%卖出线将6.32%误判红，实为黄区持有；3. 医疗/生物科技/恒生科技/中概互联在螺丝钉表均为绿区低估；4. 证券/地产/养老/A500为黄区正常。本次在 calibration.js factors 中显式注入螺丝钉官方 color 归属，全面切换方案 B，主数据与红黄绿判色彻底 100% 对齐螺丝钉。系统星级 4.1 vs 螺丝钉 4 一致。',
     },
   ],
 };

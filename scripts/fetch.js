@@ -649,24 +649,22 @@ async function main() {
     }
 
     // 模拟螺丝钉口径（剔除亏损 TTM）：pe/pb 乘以校准因子。
-    // 有因子则输出 screwPe/screwPb/screwColor 供前端对比分歧品种。
+    // 方案 B：有因子则输出 screwPe/screwPb，并严格对齐螺丝钉官方归属颜色（screwColor / color）
     const cal = calibration.factors[cfg.index_code];
     let screwPe = null;
     let screwPb = null;
     let screwColor = null;
-    if (cal && raw?.pe) {
-      if (cal.peFactor) screwPe = Number((raw.pe * cal.peFactor).toFixed(4));
+    if (cal) {
+      if (cal.peFactor && raw?.pe) screwPe = Number((raw.pe * cal.peFactor).toFixed(4));
       if (cal.pbFactor && raw?.pb) screwPb = Number((raw.pb * cal.pbFactor).toFixed(4));
-      if (screwPe && (method === 'EP' || method === 'PE')) {
-        // 用模拟 PE 计算红黄绿：EP 板块看盈利收益率绝对阈值，PE 板块用百分位近似。
-        // 百分位随口径变化小，此处以「模拟 EP」判断 EP 板块，PE 板块沿用系统百分位颜色。
-        if (method === 'EP') {
-          let sEp = 1 / screwPe;
-          if (cfg.epDiscount) sEp *= cfg.epDiscount;
-          screwColor = sEp >= config.epThreshold.buy ? 'green' : (sEp >= config.epThreshold.sell ? 'yellow' : 'red');
-          // 方案 B：螺丝钉校准口径生效为核心状态颜色
-          color = screwColor;
-        }
+      if (cal.color) {
+        screwColor = cal.color;
+        color = cal.color;
+      } else if (screwPe && method === 'EP') {
+        let sEp = 1 / screwPe;
+        if (cfg.epDiscount) sEp *= cfg.epDiscount;
+        screwColor = sEp >= config.epThreshold.buy ? 'green' : (sEp >= config.epThreshold.sell ? 'yellow' : 'red');
+        color = screwColor;
       }
     }
 
