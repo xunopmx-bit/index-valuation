@@ -193,7 +193,7 @@
 </main>
 <footer id="footer"></footer>
 <script>
-const state = { filter: 'all', sortBy: 'star', data: null, dates: null, selectedDate: null };
+const state = { filter: 'all', sortBy: 'hold', data: null, dates: null, selectedDate: null };
 
 async function load() {
   try {
@@ -311,8 +311,8 @@ function renderToolbar() {
   toolbar.innerHTML =
     `<select class="date-select" onchange="selectDate(this.value)" title="选择历史日期回溯"><option value="">选择日期...</option>${dateOpts}</select>` +
     `<select class="sort-select" onchange="setSort(this.value)" title="选择板块内排序方式">
-      <option value="star"${state.sortBy === 'star' ? ' selected' : ''}>⭐ 按星级排序 (默认)</option>
-      <option value="hold"${state.sortBy === 'hold' ? ' selected' : ''}>💼 按持仓优先</option>
+      <option value="hold"${state.sortBy === 'hold' ? ' selected' : ''}>💼 按持仓优先 (默认)</option>
+      <option value="star"${state.sortBy === 'star' ? ' selected' : ''}>⭐ 按星级排序</option>
       <option value="name"${state.sortBy === 'name' ? ' selected' : ''}>🔤 按名称排序</option>
     </select>` +
     filters.map(([k, label]) =>
@@ -398,7 +398,7 @@ function renderContent() {
     };
 
     for (const sec of d.sections) {
-      const items = sortItems(groups[sec] || [], state.sortBy || 'star');
+      const items = sortItems(groups[sec] || [], state.sortBy || 'hold');
       if (!items || !items.length) continue;
 
       const hint = sectionHints[sec] || '';
