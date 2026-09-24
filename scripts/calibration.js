@@ -20,7 +20,7 @@ module.exports = {
     'SH000010': { peFactor: 1.355, pbFactor: 1.236, color: 'yellow' }, // 上证180 螺丝钉黄区持有
     'SH000922': { peFactor: 1.148, pbFactor: 1.239, color: 'green' },  // 中证红利
     'CSIH30269':{ peFactor: 1.087, pbFactor: 0.894, color: 'green' },  // 红利低波
-    'SH000919': { peFactor: 1.193, pbFactor: 1.025, color: 'yellow' }, // 300价值 9-21起螺丝钉微移入黄区
+    'SH000919': { peFactor: 1.193, pbFactor: 1.025, color: 'green' },  // 300价值 9-23盈利收益率10.01%重返绿区
     'CSI931157':{ peFactor: 1.042, pbFactor: 1.033, color: 'green' },  // 沪港深红利低波
     // ===== 市盈率法板块（宽基/消费/医药/科技） =====
     'SH000300': { peFactor: 1.043, pbFactor: 1.226, color: 'yellow' }, // 沪深300
