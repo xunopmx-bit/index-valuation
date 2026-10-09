@@ -21,7 +21,6 @@
     "gdpYoY": 5
   },
   "calibration": {
-    "note": "模拟螺丝钉口径（剔除亏损TTM），由校准因子表计算；因子基于用户提供的历史表逐步收敛",
     "history": [
       {
         "date": "2026-08-31",
@@ -102,8 +101,26 @@
         "date": "2026-09-22",
         "source": "用户提供 9-22 螺丝钉估值表（螺丝钉星级 4 星）",
         "note": "第十五次校准与颜色系统性对齐。持仓 10 只 PE 因子偏差全部 <3.17%（avg 1.67%；50AH 0.09%/白酒 0.81%/中证500 1.07%/上证红利 1.16%/医疗 1.37%）。PB 板块 5 只全部 <2.30%（军工 0.37%/银行 0.72%/地产 1.53%/证券 2.04%/环保 2.30%）。针对用户反馈的红绿黄分歧进行根因排查与修复：1. 红利机会原因蛋卷近几年特定利润暴增导致百分位虚高97.8%误判红，实为黄区持有；2. 上证180原因固定6.4%卖出线将6.32%误判红，实为黄区持有；3. 医疗/生物科技/恒生科技/中概互联在螺丝钉表均为绿区低估；4. 证券/地产/养老/A500为黄区正常。本次在 calibration.js factors 中显式注入螺丝钉官方 color 归属，全面切换方案 B，主数据与红黄绿判色彻底 100% 对齐螺丝钉。系统星级 4.1 vs 螺丝钉 4 一致。"
+      },
+      {
+        "date": "2026-09-23",
+        "source": "用户提供 9-23 螺丝钉估值表（螺丝钉星级 4 星）",
+        "note": "第十六次校准（补记：当日提交遗漏追加本条 history，随第十七次一并补上）。300价值螺丝钉 EP 10.01% 重返绿区，factors color yellow→green 并注入 09-23 快照（star 3.5→4、screwColor green）；红利机会按黄区百分位法修正 star 2.5→3。其余因子与颜色归属维持。"
+      },
+      {
+        "date": "2026-09-24",
+        "source": "用户提供 9-24 螺丝钉估值表（螺丝钉星级 4 星）",
+        "note": "第十七次校准（国庆节前最后一张表，9-25 起假期无对照，期间 cron 以本组因子自动注入）。持仓 10 只 PE 因子偏差全部 <2.23%（avg 1.27%；上证红利/中证红利 -2.23% 最大，H股指数 0.02%/500低波 0.01%/深证成指 -0.02% 高度吻合）。全部 36 只有 peFactor 指数 avg 1.43%，科创50 偏差 -14.53%（实测 1.4137 vs 因子 1.654）较连续五日 10~13.4% 观察区间略有放大，维持观察不调因子。PB 板块 41 只 avg 1.30%，银行 0.02%/50AH 0.01% 极度贴合，香港中小 7.51% 为 PB 板块新最大（单日波动观察）。颜色 38/40 一致：证券公司（表 PB 1.58）重返螺丝钉绿区，factors color yellow→green；纳斯达克100（表 PE 29.65）回落黄区，factors color red→yellow。同步注入 09-24 快照两只品种（证券 5 星/纳指 3 星）。"
+      },
+      {
+        "date": "2026-09-28",
+        "source": "用户提供 9-28 螺丝钉估值表（螺丝钉星级 4 星，国庆假期前最后交易日数据）",
+        "note": "第十八次校准（节后首张表，覆盖 9-25~10-08 国庆假期空窗，期间 cron 以既有因子自动注入）。与系统 09-29 快照（dataDate=09-28）逐只比对：持仓 10 只 PE 因子偏差全部 <3.04%（avg 1.54%；上证红利 -3.04% 最大，红利机会 -1.65%/50AH -1.59%/H股 -0.38% 贴合）。全部 36 只有 peFactor 指数 avg 1.71%，科创50 偏差 -14.96%（实测 1.4066 vs 因子 1.654）仍处观察区间，维持不调因子。PB 板块 41 只 avg 1.65%，香港中小 9.06%/科技100 -7.17% 波动最大（PB 单日波动观察），其余 <4.3%。新增 4 只品种映射（基金代码锚定）：消费红利(CSIH30094, 场外008928) pe 1.159/pb 0.657 绿区；中证A100(SH000903, 场内512910/场外213010) pe 1.066/pb 1.190 黄区——系统百分位法 0.87 误红，按螺丝钉官方归属注入 cal color yellow；可选消费(SH000989, 场内159936/场外001133) pe 1.031/pb 1.012 黄区；东证竞争力(CSI931142, 007657) pe 0.940/pb 0.902 黄区。factors 43→47。既有 43 只因子与颜色全部一致（证券公司 cal green 与表绿一致、纳指 cal yellow 与表黄一致），注入刷新 cron 旧色：证券 yellow→green（star 3.5→5）、纳指 red→yellow（star 2→3）、中证A100 red→yellow（star 2→2.5）。表内「食品饮料」经场外代码 001631 锚定为中证食品饮料指数(930653)，系统未收录，不入映射。系统星级 4.3 vs 螺丝钉 4 一致。"
       }
-    ]
+    ],
+    "updatedAt": "2026-10-09T16:24:12.018Z",
+    "factorCount": 47,
+    "latestNote": "第十八次校准（节后首张表，覆盖 9-25~10-08 国庆假期空窗，期间 cron 以既有因子自动注入）。与系统 09-29 快照（dataDate=09-28）逐只比对：持仓 10 只 PE 因子偏差全部 <3.04%（avg 1.54%；上证红利 -3.04% 最大，红利机会 -1.65%/50AH -1.59%/H股 -0.38% 贴合）。全部 36 只有 peFactor 指数 avg 1.71%，科创50 偏差 -14.96%（实测 1.4066 vs 因子 1.654）仍处观察区间，维持不调因子。PB 板块 41 只 avg 1.65%，香港中小 9.06%/科技100 -7.17% 波动最大（PB 单日波动观察），其余 <4.3%。新增 4 只品种映射（基金代码锚定）：消费红利(CSIH30094, 场外008928) pe 1.159/pb 0.657 绿区；中证A100(SH000903, 场内512910/场外213010) pe 1.066/pb 1.190 黄区——系统百分位法 0.87 误红，按螺丝钉官方归属注入 cal color yellow；可选消费(SH000989, 场内159936/场外001133) pe 1.031/pb 1.012 黄区；东证竞争力(CSI931142, 007657) pe 0.940/pb 0.902 黄区。factors 43→47。既有 43 只因子与颜色全部一致（证券公司 cal green 与表绿一致、纳指 cal yellow 与表黄一致），注入刷新 cron 旧色：证券 yellow→green（star 3.5→5）、纳指 red→yellow（star 2→3）、中证A100 red→yellow（star 2→2.5）。表内「食品饮料」经场外代码 001631 锚定为中证食品饮料指数(930653)，系统未收录，不入映射。系统星级 4.3 vs 螺丝钉 4 一致。"
   },
   "thresholds": {
     "low": 0.2,
@@ -605,9 +622,9 @@
       "percentile": 0.073,
       "color": "green",
       "star": 5,
-      "screwPe": null,
-      "screwPb": null,
-      "screwColor": null,
+      "screwPe": 21.7197,
+      "screwPb": 2.23,
+      "screwColor": "green",
       "date": "09-28",
       "source": "csindex"
     },
@@ -953,9 +970,9 @@
       "percentile": 0.2299,
       "color": "yellow",
       "star": 3.5,
-      "screwPe": null,
-      "screwPb": null,
-      "screwColor": null,
+      "screwPe": 18.4858,
+      "screwPb": 2.0195,
+      "screwColor": "yellow",
       "date": "09-28",
       "source": "csindex"
     },
@@ -1562,9 +1579,9 @@
       "percentile": 0.6537,
       "color": "yellow",
       "star": 2.5,
-      "screwPe": null,
-      "screwPb": null,
-      "screwColor": null,
+      "screwPe": 15.2186,
+      "screwPb": 2.4207,
+      "screwColor": "yellow",
       "date": "09-28",
       "source": "csindex"
     },
@@ -1647,11 +1664,11 @@
       "pe_percentile": 0.8676229508196721,
       "pb_percentile": 0.8956,
       "percentile": 0.8676,
-      "color": "red",
-      "star": 2,
-      "screwPe": null,
-      "screwPb": null,
-      "screwColor": null,
+      "color": "yellow",
+      "star": 2.5,
+      "screwPe": 16.5443,
+      "screwPb": 2.1307,
+      "screwColor": "yellow",
       "date": "09-28",
       "source": "csindex"
     },
@@ -1763,11 +1780,11 @@
       "pe_percentile": 0,
       "pb_percentile": 0.0592,
       "percentile": 0.0592,
-      "color": "yellow",
-      "star": 3.5,
+      "color": "green",
+      "star": 5,
       "screwPe": null,
       "screwPb": 1.5567,
-      "screwColor": "yellow",
+      "screwColor": "green",
       "date": "09-28",
       "source": "danjuan"
     },
@@ -2082,11 +2099,11 @@
       "pe_percentile": 0.5028,
       "pb_percentile": 0.8688,
       "percentile": 0.5028,
-      "color": "red",
-      "star": 2,
+      "color": "yellow",
+      "star": 3,
       "screwPe": 30.2779,
       "screwPb": 9.8376,
-      "screwColor": "red",
+      "screwColor": "yellow",
       "date": "09-28",
       "source": "danjuan"
     }

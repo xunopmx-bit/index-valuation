@@ -28,6 +28,7 @@ module.exports = {
     'SH000852': { peFactor: 1.478, pbFactor: 1.021, color: 'yellow' }, // 中证1000
     'SH000688': { peFactor: 1.654, pbFactor: 1.034, color: 'red' },    // 科创50 唯一红区
     '930050':   { peFactor: 1.249, pbFactor: 1.400, color: 'yellow' }, // 中证A500 螺丝钉黄区
+    'SH000903': { peFactor: 1.066, pbFactor: 1.190, color: 'yellow' }, // 中证A100 螺丝钉黄区（系统百分位法误红，9-28表基金代码锚定后新增）
     'SZ399701': { peFactor: 1.078, pbFactor: 1.079, color: 'yellow' }, // 基本面60 蛋卷源黄区
     'SZ399702': { peFactor: 1.337, pbFactor: 0.999, color: 'yellow' }, // 基本面120
     'SZ399997': { peFactor: 1.059, pbFactor: 0.610, color: 'green' },  // 中证白酒 绿区
@@ -39,11 +40,14 @@ module.exports = {
     'CSPSADRP': { peFactor: 1.400, pbFactor: 1.515, color: 'yellow' }, // 红利机会 螺丝钉黄区正常持有，非高估
     'CSI930782':{ peFactor: 1.453, pbFactor: 1.031, color: 'yellow' }, // 500低波
     'SZ399812': { peFactor: 2.389, pbFactor: 1.173, color: 'yellow' }, // 养老产业 螺丝钉黄区
+    'CSI931142':{ peFactor: 0.940, pbFactor: 0.902, color: 'yellow' }, // 东证竞争力 螺丝钉黄区（9-28表007657锚定后新增）
     'SZ399330': { peFactor: 0.990, pbFactor: 1.085, color: 'yellow' }, // 深证100
     'SZ399001': { peFactor: 0.981, pbFactor: 1.064, color: 'yellow' }, // 深证成指
     'SZ399006': { peFactor: 0.987, pbFactor: 1.045, color: 'yellow' }, // 创业板指
     'SZ399324': { peFactor: 0.836, pbFactor: 0.648, color: 'green' },  // 深证红利 螺丝钉绿区
+    'CSIH30094':{ peFactor: 1.159, pbFactor: 0.657, color: 'green' },  // 消费红利 螺丝钉绿区（9-28表场外008928锚定后新增）
     'SH000932': { peFactor: 1.192, pbFactor: 0.774, color: 'green' },  // 主要消费 螺丝钉绿区
+    'SH000989': { peFactor: 1.031, pbFactor: 1.012, color: 'yellow' }, // 可选消费 螺丝钉黄区（9-28表159936/001133锚定后新增）
     'HKHSTECH': { peFactor: null,  pbFactor: 1.489, color: 'green' },  // 恒生科技 螺丝钉绿区
     'CSIH30533':{ peFactor: null,  pbFactor: 1.796, color: 'green' },  // 中概互联50 螺丝钉绿区
     'SPHCMSHP': { peFactor: 1.050, pbFactor: 1.000, color: 'yellow' }, // 香港中小 螺丝钉黄区
@@ -149,6 +153,11 @@ module.exports = {
       date: '2026-09-24',
       source: '用户提供 9-24 螺丝钉估值表（螺丝钉星级 4 星）',
       note: '第十七次校准（国庆节前最后一张表，9-25 起假期无对照，期间 cron 以本组因子自动注入）。持仓 10 只 PE 因子偏差全部 <2.23%（avg 1.27%；上证红利/中证红利 -2.23% 最大，H股指数 0.02%/500低波 0.01%/深证成指 -0.02% 高度吻合）。全部 36 只有 peFactor 指数 avg 1.43%，科创50 偏差 -14.53%（实测 1.4137 vs 因子 1.654）较连续五日 10~13.4% 观察区间略有放大，维持观察不调因子。PB 板块 41 只 avg 1.30%，银行 0.02%/50AH 0.01% 极度贴合，香港中小 7.51% 为 PB 板块新最大（单日波动观察）。颜色 38/40 一致：证券公司（表 PB 1.58）重返螺丝钉绿区，factors color yellow→green；纳斯达克100（表 PE 29.65）回落黄区，factors color red→yellow。同步注入 09-24 快照两只品种（证券 5 星/纳指 3 星）。',
+    },
+    {
+      date: '2026-09-28',
+      source: '用户提供 9-28 螺丝钉估值表（螺丝钉星级 4 星，国庆假期前最后交易日数据）',
+      note: '第十八次校准（节后首张表，覆盖 9-25~10-08 国庆假期空窗，期间 cron 以既有因子自动注入）。与系统 09-29 快照（dataDate=09-28）逐只比对：持仓 10 只 PE 因子偏差全部 <3.04%（avg 1.54%；上证红利 -3.04% 最大，红利机会 -1.65%/50AH -1.59%/H股 -0.38% 贴合）。全部 36 只有 peFactor 指数 avg 1.71%，科创50 偏差 -14.96%（实测 1.4066 vs 因子 1.654）仍处观察区间，维持不调因子。PB 板块 41 只 avg 1.65%，香港中小 9.06%/科技100 -7.17% 波动最大（PB 单日波动观察），其余 <4.3%。新增 4 只品种映射（基金代码锚定）：消费红利(CSIH30094, 场外008928) pe 1.159/pb 0.657 绿区；中证A100(SH000903, 场内512910/场外213010) pe 1.066/pb 1.190 黄区——系统百分位法 0.87 误红，按螺丝钉官方归属注入 cal color yellow；可选消费(SH000989, 场内159936/场外001133) pe 1.031/pb 1.012 黄区；东证竞争力(CSI931142, 007657) pe 0.940/pb 0.902 黄区。factors 43→47。既有 43 只因子与颜色全部一致（证券公司 cal green 与表绿一致、纳指 cal yellow 与表黄一致），注入刷新 cron 旧色：证券 yellow→green（star 3.5→5）、纳指 red→yellow（star 2→3）、中证A100 red→yellow（star 2→2.5）。表内「食品饮料」经场外代码 001631 锚定为中证食品饮料指数(930653)，系统未收录，不入映射。系统星级 4.3 vs 螺丝钉 4 一致。',
     },
   ],
 };
