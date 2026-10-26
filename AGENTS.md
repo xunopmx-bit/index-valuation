@@ -88,6 +88,18 @@
 
 **校准工具链（2026-10 沉淀）**：`node scripts/calibrate.js <估值表.json> <快照.json>` 一键校验（星级自检/拟合分组/异常/持仓诊断/未映射行推荐）；加 `--apply` 重算预演，`--apply --write` 双写快照 calibration + valuations（等价步骤 4 注入法）；47 码表行名↔代码映射固化在 `scripts/calibration_map.js`。星级行为权威 = fetch.js calculateItemStar，脚本内联实现已与其对齐。
 
+**色区自动比对（color_scan.js，替代人工逐行核对切片背景色）**：
+`node scripts/color_scan.js <切片1.png> <切片2.png> ... --check <表.json> [--strict]`。
+纯 node 解码 PNG，DP 全局行数分配（约束 Σn=表行数、最小化残差平方和）展开色段后与因子色逐行比对，输出分歧行定位。约定：
+- 切片按表格从上到下顺序传入（0..N），**gap 重叠片勿传入**；JPG 先转 PNG（8bit RGB/RGBA 非隔行）。
+- 表 json 必须按图序**含全部有色行**（含固收子表通配行），缺失行会导致 DP 全局错位；浅蓝国债行等无色底行不计入。
+- `--strict` 额外将 0 行噪声段判为失败；DP 无解（切片缺段/乱序/表行数不符）一律 exit 1。
+- 回归样本：`..\_smoke\cal1026_0..7.png` + `..\_smoke\table_1020.json`（80 行），预期 47/47 已知色零分歧。
+
+**数据体检预检（data_health.js，蛋卷单日坏数据探针）**：
+`node scripts/data_health.js [快照.json] [--prev <前日.json>]`（缺省自动取最新 vs 前一日）。
+同源恒等式对单日坏数据无效（损坏值自洽），唯一可靠探针是跨日跳变：|peΔ|>15%、|pbΔ|>10%、|ep·roe·yieldΔ|>20%、|percentileΔ|>0.12 报警；pe≤0 且前日>0 报警（正转零几乎必为坏数据）。跨日稳定的历史极值（percentile<0.02 或 >0.98）与长期亏损 pe=0 为**提示**不计报警。当日快照生成后跑一次，报警即人工核对源站、勿直接校准入库。回归样本：`..\_smoke\history_1020_prefix.json`（10-20 修复前快照，`--prev site/data/history/2026-10-19.json` 应报警 5 条 50AH优选；修复后快照 0 报警）。
+
 **已知观察点（对照时留意）**：
 - 科创50：官网剔亏口径对亏损股名单敏感，实测因子偏差曾 3.2%→10~12% 单日放大，持续观察。
 - 银行 PB：螺丝钉表自身在 0.84~0.95 波动，无法稳定校准，维持因子 1.346。
