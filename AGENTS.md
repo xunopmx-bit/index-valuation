@@ -86,6 +86,8 @@
 5. 早上（当日快照尚未生成）可删 `history/<今日>.json` + `index.json` 后重跑 fetch.js。
 6. commit → push（先 pull --rebase，见 §6）→ `& "C:\Users\i_fuc\AppData\Local\Programs\ghcli\bin\gh.exe" workflow run daily-valuation.yml -R xunopmx-bit/index-valuation` 触发部署 → `gh run view <id> -R ... --json status,conclusion` → node fetch 线上验证 calHist。
 
+**校准工具链（2026-10 沉淀）**：`node scripts/calibrate.js <估值表.json> <快照.json>` 一键校验（星级自检/拟合分组/异常/持仓诊断/未映射行推荐）；加 `--apply` 重算预演，`--apply --write` 双写快照 calibration + valuations（等价步骤 4 注入法）；47 码表行名↔代码映射固化在 `scripts/calibration_map.js`。星级行为权威 = fetch.js calculateItemStar，脚本内联实现已与其对齐。
+
 **已知观察点（对照时留意）**：
 - 科创50：官网剔亏口径对亏损股名单敏感，实测因子偏差曾 3.2%→10~12% 单日放大，持续观察。
 - 银行 PB：螺丝钉表自身在 0.84~0.95 波动，无法稳定校准，维持因子 1.346。
@@ -118,12 +120,18 @@
 # push 前必做（远程几乎总有 Actions 新提交）：
 git -c core.editor=true pull --rebase origin main
 
-# rebase 冲突在 valuations.json / history/*.json 时：
-#   要保留自己的版本（含新校准）：
+# rebase 冲突在 valuations.json / history/*.json 时（rebase 语义：--ours=上游远端 cron 数据，--theirs=本地被重放提交）：
+#   方案 A：保留本地版本（含新校准）：
 git checkout --theirs <冲突文件>
 git add <冲突文件>
 git -c core.editor=true rebase --continue
-#   或者：重跑 node scripts/fetch.js 生成新数据覆盖（仅早上可做，见 §5.4）
+#   方案 B（推荐）：保留远端 cron 新数据 + 重注入校准（避免本地旧 updatedAt/因子顶掉远端新行情）：
+git checkout --ours <冲突文件>
+git add <冲突文件>
+node scripts/calibrate.js --val-only        # 重算星级 5 字段 + 注入 calibration 块到 valuations.json
+git add site/data/valuations.json
+git -c core.editor=true rebase --continue
+#   或者：重跑 node scripts/fetch.js 生成新数据覆盖（仅早上可做，见 §5 步骤 5）
 
 # gh CLI 在本机不在 PATH，用全路径；触发部署需 -R 显式指定仓库。
 ```
