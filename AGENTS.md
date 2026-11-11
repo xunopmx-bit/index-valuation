@@ -99,7 +99,7 @@ node -e "fetch('https://api.github.com/repos/xunopmx-bit/index-valuation/actions
 - 切片按表格从上到下顺序传入（0..N），**gap 重叠片勿传入**；JPG 先转 PNG（8bit RGB/RGBA 非隔行）。
 - 表 json 必须按图序**含全部有色行**（含固收子表通配行），缺失行会导致行数错位；浅蓝国债行等无色底行不计入。
 - `--strict` 额外将 0 行噪声段判为失败；无解（切片缺段/乱序/表行数不符）一律 exit 1。
-- 回归样本：`..\_smoke\zsd1027_full.png` + `table_1027.json`、`..\_smoke\zsd1028_full.png` + `table_1028.json`、`..\_smoke\zsd1029_full.png` + `table_1029.json`、`..\_smoke\zsd_full_1030.png` + `table_1030.json`、`..\_smoke\zsd_full_1102.png` + `table_1102.json`、`..\_smoke\zsd_full_1103.png` + `table_1103.json`、`..\_smoke\zsd_full_1104.png` + `table_1104.json`（均 80 行），预期 47/47 已知色零分歧。
+- 回归样本：`..\_smoke\zsd1027_full.png` + `table_1027.json`、`..\_smoke\zsd1028_full.png` + `table_1028.json`、`..\_smoke\zsd1029_full.png` + `table_1029.json`、`..\_smoke\zsd_full_1030.png` + `table_1030.json`、`..\_smoke\zsd_full_1102.png` + `table_1102.json`、`..\_smoke\zsd_full_1103.png` + `table_1103.json`、`..\_smoke\zsd_full_1104.png` + `table_1104.json`、`..\_smoke\zsd_full_1105.png` + `table_1105.json`（均 80 行），预期 47/47 已知色零分歧。
 - 历史坑（已根治）：旧版全局 DP 在「市盈率段与市净率段之间的分节表头」处，因两节行高不均（PE 段 34.8px/行、PB 段 39.2px/行）把 PE 末行挪给 PB 段，导致科创50/证券行业连续两轮各报 1 处伪分歧（10-27、10-28 表），需靠裁剪放大人工裁决。现按分节切组后跨节挪动在结构上不可能发生，无需再裁剪。
 - 若 `--check` 仍报分歧，先看「分组/段分配」输出是否与目视行数一致；一致则为真分歧（因子色需修正），不一致才需人工核图。
 
