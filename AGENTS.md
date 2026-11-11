@@ -84,7 +84,12 @@
 3. 偏差全部 <5% → 因子不动，只追加 `calibration.js` history 一条（date=表日期、source、note 含结论）。
 4. **晚间蛋卷已翻新 dataDate 时不要重跑 fetch.js**（会覆盖当日 09:xx 已归档的快照）。改用**注入法**：node 脚本把 calibration 整体写入 `valuations.json` 与对应历史快照的 `.calibration` 字段（每文件仅 +几行 diff）。
 5. 早上（当日快照尚未生成）可删 `history/<今日>.json` + `index.json` 后重跑 fetch.js。
-6. commit → push（先 pull --rebase，见 §6）→ `& "C:\Users\i_fuc\AppData\Local\Programs\ghcli\bin\gh.exe" workflow run daily-valuation.yml -R xunopmx-bit/index-valuation` 触发部署 → `gh run view <id> -R ... --json status,conclusion` → node fetch 线上验证 calHist。
+6. commit → push（先 pull --rebase，见 §6）。**push 到 main 即自动触发部署**，无需 `workflow_dispatch`；用 Node 直连 API 查最新 run 状态 → node fetch 线上验证 calHist。gh CLI 本机已卸载（原路径失效），统一走直连 API：
+
+```powershell
+$env:NODE_USE_ENV_PROXY='1'; $env:HTTPS_PROXY='http://127.0.0.1:7897'
+node -e "fetch('https://api.github.com/repos/xunopmx-bit/index-valuation/actions/runs?per_page=5',{headers:{'User-Agent':'node'}}).then(r=>r.json()).then(j=>j.workflow_runs.forEach(r=>console.log(r.id,r.status,r.conclusion||'-',r.head_sha.slice(0,7))))"
+```
 
 **校准工具链（2026-10 沉淀）**：`node scripts/calibrate.js <估值表.json> <快照.json>` 一键校验（星级自检/拟合分组/异常/持仓诊断/未映射行推荐）；加 `--apply` 重算预演，`--apply --write` 双写快照 calibration + valuations（等价步骤 4 注入法）；47 码表行名↔代码映射固化在 `scripts/calibration_map.js`。星级行为权威 = fetch.js calculateItemStar，脚本内联实现已与其对齐。
 
@@ -153,7 +158,7 @@ git add site/data/valuations.json
 git -c core.editor=true rebase --continue
 #   或者：重跑 node scripts/fetch.js 生成新数据覆盖（仅早上可做，见 §5 步骤 5）
 
-# gh CLI 在本机不在 PATH，用全路径；触发部署需 -R 显式指定仓库。
+# gh CLI 本机已卸载（原 AppData\Local\Programs\ghcli 路径不存在），不要再用；GitHub 相关查询/监控一律用 Node 直连 API（见 §5 步骤 6）。
 ```
 
 ## 7. 本地操作陷阱清单
