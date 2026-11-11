@@ -50,7 +50,7 @@ module.exports = {
     { index_code: "CSI930652", method: "PE", section: "市盈率法", name: "中证电子", fundCode: "515260", fundFcode: "012651", source: "csindex" },
     { index_code: "SZ399610", method: "PE", section: "市盈率法", name: "TMT50", fundCode: "159909", fundFcode: "160224" },
     { index_code: "CSI931079", method: "PE", section: "市盈率法", name: "5G通讯", fundCode: "515050", fundFcode: "008086", source: "csindex" },
-    { index_code: "SZ399417", method: "PE", section: "市盈率法", name: "新能源车", fundCode: "515030", fundFcode: "160225" },
+    { index_code: "SZ399417", method: "PE", section: "市盈率法", hold: true, name: "新能源车", fundCode: "515030", fundFcode: "160225" },
     { index_code: "SZ399971", method: "PE", section: "市盈率法", name: "中证传媒", fundCode: "512980", fundFcode: "004752", source: "csindex" },
     { index_code: "SZ399998", method: "PB", section: "市净率法", name: "中证煤炭", fundCode: "515220", fundFcode: "008279" },
     { index_code: "CSI931142", method: "PE", section: "市盈率法", name: "东证竞争", fundFcode: "007658", source: "csindex" },
