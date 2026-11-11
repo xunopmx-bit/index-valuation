@@ -90,11 +90,13 @@
 
 **色区自动比对（color_scan.js，替代人工逐行核对切片背景色）**：
 `node scripts/color_scan.js <切片1.png> <切片2.png> ... --check <表.json> [--strict]`。
-纯 node 解码 PNG，DP 全局行数分配（约束 Σn=表行数、最小化残差平方和）展开色段后与因子色逐行比对，输出分歧行定位。约定：
+纯 node 解码 PNG → 行级 HSV 分类 → 色段压缩 → **分节感知的行数分配**（按显著白段/other 段切出若干「节」，组间闭合到表行数，组内用局部行高逐段取整，最后按「色冲突行数优先、拟合残差次之」选优），展开色段后与因子色逐行比对，输出分歧行定位。约定：
 - 切片按表格从上到下顺序传入（0..N），**gap 重叠片勿传入**；JPG 先转 PNG（8bit RGB/RGBA 非隔行）。
-- 表 json 必须按图序**含全部有色行**（含固收子表通配行），缺失行会导致 DP 全局错位；浅蓝国债行等无色底行不计入。
-- `--strict` 额外将 0 行噪声段判为失败；DP 无解（切片缺段/乱序/表行数不符）一律 exit 1。
-- 回归样本：`..\_smoke\cal1026_0..7.png` + `..\_smoke\table_1020.json`（80 行），预期 47/47 已知色零分歧。
+- 表 json 必须按图序**含全部有色行**（含固收子表通配行），缺失行会导致行数错位；浅蓝国债行等无色底行不计入。
+- `--strict` 额外将 0 行噪声段判为失败；无解（切片缺段/乱序/表行数不符）一律 exit 1。
+- 回归样本：`..\_smoke\zsd1027_full.png` + `table_1027.json`、`..\_smoke\zsd1028_full.png` + `table_1028.json`（均 80 行），预期 47/47 已知色零分歧。
+- 历史坑（已根治）：旧版全局 DP 在「市盈率段与市净率段之间的分节表头」处，因两节行高不均（PE 段 34.8px/行、PB 段 39.2px/行）把 PE 末行挪给 PB 段，导致科创50/证券行业连续两轮各报 1 处伪分歧（10-27、10-28 表），需靠裁剪放大人工裁决。现按分节切组后跨节挪动在结构上不可能发生，无需再裁剪。
+- 若 `--check` 仍报分歧，先看「分组/段分配」输出是否与目视行数一致；一致则为真分歧（因子色需修正），不一致才需人工核图。
 
 **数据体检预检（data_health.js，蛋卷单日坏数据探针）**：
 `node scripts/data_health.js [快照.json] [--prev <前日.json>]`（缺省自动取最新 vs 前一日）。
@@ -132,6 +134,11 @@
 ```bash
 # push 前必做（远程几乎总有 Actions 新提交）：
 git -c core.editor=true pull --rebase origin main
+
+# 若报 "cannot pull with rebase: You have unstaged changes"（多为 scripts/*.js 只差 LF/CRLF 的假改动）：
+git checkout -- <该文件>        # 先清掉行尾噪音
+git -c core.editor=true pull --rebase origin main   # 再重试
+# 严禁因 rebase 失败就直接 push——即使本次恰好安全，也失去了与远端对齐的校验。
 
 # rebase 冲突在 valuations.json / history/*.json 时（rebase 语义：--ours=上游远端 cron 数据，--theirs=本地被重放提交）：
 #   方案 A：保留本地版本（含新校准）：
