@@ -405,6 +405,7 @@ function renderContent() {
       const hint = sectionHints[sec] || '';
       const isEP = sec === '盈利收益率法';
       const isPB = sec === '市净率法';
+      const isAlt = sec === '另类资产';
 
       html += `<div class="section">
         <div class="section-title">
@@ -413,6 +414,11 @@ function renderContent() {
         </div>
         <div class="table-wrap"><table>
           <thead><tr>
+            ${isAlt ? `
+            <th>品种</th>
+            <th>前日收盘价</th>
+            <th>价格日期</th>
+            <th>场内</th><th>场外</th>` : `
             <th>指数</th>
             <th>前日收盘净值</th>
             ${isEP ? '<th>盈利收益率</th><th title="已按银行螺丝钉口径校准">市盈率*</th>' : '<th title="已按银行螺丝钉口径校准">市盈率*</th>'}
@@ -420,7 +426,7 @@ function renderContent() {
             <th>股息率</th><th>ROE</th>
             <th>百分位</th>
             <th>状态</th><th>星级</th>
-            <th>场内</th><th>场外</th>
+            <th>场内</th><th>场外</th>`}
           </tr></thead><tbody>`;
 
       for (const i of items) {
@@ -468,12 +474,15 @@ function renderContent() {
           ? `<span class="nav-val" title="${i.priceType || '场内'}: ${i.priceCode || '-'} (更新: ${i.priceDate || '-'})">${Number(i.closePrice).toFixed(4)}</span><span class="price-type-tag">${i.priceType || '场内'}</span>`
           : '<span class="missing">-</span>';
 
-        let statusHtml = i.section === '另类资产'
-          ? '<span class="color-badge color-gray">商品</span>'
-          : `<span class="color-badge color-${effColor}">${colorName}</span>`;
+        const statusHtml = `<span class="color-badge color-${effColor}">${colorName}</span>`;
 
         html += `<tr${cls}>
           <td><span class="index-name">${i.name}</span>${badge}</td>
+          ${isAlt ? `
+          <td>${navHtml}</td>
+          <td>${i.priceDate || '-'}</td>
+          <td class="suffix">${i.fundCode || '-'}</td>
+          <td class="suffix">${i.fundFcode || '-'}</td>` : `
           <td>${navHtml}</td>
           ${isEP ? `<td>${epHtml}</td><td>${peHtml}</td>` : `<td>${peHtml}</td>`}
           ${isPB ? '' : `<td>${pbHtml}</td>`}
@@ -483,7 +492,7 @@ function renderContent() {
           <td>${statusHtml}</td>
           <td class="star" style="color:${starColor(i.star)}">${i.star != null ? i.star : '-'}</td>
           <td class="suffix">${i.fundCode || '-'}</td>
-          <td class="suffix">${i.fundFcode || '-'}</td>
+          <td class="suffix">${i.fundFcode || '-'}</td>`}
         </tr>`;
       }
 
