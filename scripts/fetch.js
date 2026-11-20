@@ -466,6 +466,55 @@ async function fetchLeguleguMeta(indexCode) {
   }
 }
 
+// 另类资产（商品/贵金属类）价格指标：5年价格分位 + 200日均线偏离 + 建议权重
+// 从东财历史K线拉近5年日收盘价计算；无PE/PB估值，仅作价格趋势参考
+async function fetchAltAssetMetrics(cfg) {
+  if (!cfg.fundCode) return null;
+  const sec = getSecCode(cfg.fundCode);
+  if (!sec) return null;
+  const marketPrefix = sec.startsWith('sh') ? '1' : '0';
+  const secid = `${marketPrefix}.${cfg.fundCode}`;
+  try {
+    const url = `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secid}&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&end=20500101&lmt=1210`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36' } });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const klines = json?.data?.klines;
+    if (!Array.isArray(klines) || klines.length < 60) return null;
+    const closes = klines.map(k => Number(k.split(',')[2])).filter(v => Number.isFinite(v) && v > 0);
+    if (closes.length < 60) return null;
+    const currentPrice = closes[closes.length - 1];
+    // 200日均线
+    const ma200 = closes.length >= 200
+      ? closes.slice(-200).reduce((a, b) => a + b, 0) / 200
+      : null;
+    const devFromMa200 = ma200 ? Number(((currentPrice - ma200) / ma200 * 100).toFixed(2)) : null;
+    // 5年价格分位（近1210个交易日）
+    const window = closes.slice(-1210);
+    const pricePercentile5y = window.length > 0
+      ? Number((window.filter(v => v <= currentPrice).length / window.length * 100).toFixed(2))
+      : null;
+    // 建议权重：基于5年价格分位的配置带
+    // <20% 历史低位→高配 8%；20~50%→标配偏低 6%；50~80%→标配 5%；>=80% 历史高位→低配 3%
+    let targetWeight = 5;
+    if (pricePercentile5y != null) {
+      if (pricePercentile5y < 20) targetWeight = 8;
+      else if (pricePercentile5y < 50) targetWeight = 6;
+      else if (pricePercentile5y < 80) targetWeight = 5;
+      else targetWeight = 3;
+    }
+    return {
+      pricePercentile5y,
+      ma200: ma200 ? Number(ma200.toFixed(4)) : null,
+      devFromMa200,
+      targetWeight,
+    };
+  } catch (e) {
+    console.warn(`⚠️ ${cfg.name} 另类资产价格指标获取失败: ${e.message}`);
+    return null;
+  }
+}
+
 async function main() {
   const items = await fetchDanjuan();
   const now = new Date();
@@ -491,6 +540,14 @@ async function main() {
   }
 
   const fundPrices = await fetchFundPrices(config.indexes);
+
+  // 另类资产价格指标（5年分位/200日线偏离/建议权重），失败不阻塞
+  const altAssets = config.indexes.filter(i => i.section === '另类资产');
+  const altMetrics = {};
+  await Promise.all(altAssets.map(async (cfg) => {
+    const m = await fetchAltAssetMetrics(cfg);
+    if (m) altMetrics[cfg.index_code] = m;
+  }));
 
   // 巴菲特指标（A股总市值/GDP），失败则返回 null 不阻塞主流程
   const buffett = await fetchBuffett();
@@ -743,6 +800,13 @@ async function main() {
       screwPe,
       screwPb,
       screwColor,
+      // 另类资产专属：5年价格分位 / 200日均线 / 偏离 / 建议权重
+      ...(cfg.section === '另类资产' ? {
+        pricePercentile5y: altMetrics[cfg.index_code]?.pricePercentile5y ?? null,
+        ma200: altMetrics[cfg.index_code]?.ma200 ?? null,
+        devFromMa200: altMetrics[cfg.index_code]?.devFromMa200 ?? null,
+        targetWeight: altMetrics[cfg.index_code]?.targetWeight ?? null,
+      } : {}),
       date: raw?.date ?? dateStr,
       source: cfg.source || (raw ? 'danjuan' : 'missing'),
     });

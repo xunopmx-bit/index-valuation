@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-20T03:56:10.217Z",
+  "generated_at": "2026-11-20T07:26:48.249Z",
   "date": "2026-11-20",
   "dataDate": "11-19",
   "source": "danjuanfunds.com/djapi/index_eva/dj",
@@ -14,8 +14,8 @@
     "fullHistPercentile": 0.4564250196283695
   },
   "buffett": {
-    "ratio": 68.61,
-    "totalCapYiyuan": 961897,
+    "ratio": 68.25,
+    "totalCapYiyuan": 956851,
     "gdpYear": "2025-12-01",
     "gdpYiyuan": 1401879,
     "gdpYoY": 5
@@ -2262,6 +2262,10 @@
       "screwPe": null,
       "screwPb": null,
       "screwColor": null,
+      "pricePercentile5y": 68.1,
+      "ma200": 9.2567,
+      "devFromMa200": -21.56,
+      "targetWeight": 5,
       "date": "2026-11-20",
       "source": "missing"
     }

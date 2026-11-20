@@ -417,7 +417,9 @@ function renderContent() {
             ${isAlt ? `
             <th>品种</th>
             <th>前日收盘价</th>
-            <th>价格日期</th>
+            <th>5年价格分位</th>
+            <th>距200日线</th>
+            <th>建议权重</th>
             <th>场内</th><th>场外</th>` : `
             <th>指数</th>
             <th>前日收盘净值</th>
@@ -476,11 +478,35 @@ function renderContent() {
 
         const statusHtml = `<span class="color-badge color-${effColor}">${colorName}</span>`;
 
+        // 另类资产行渲染辅助
+        let altPctHtml = '<span class="missing">-</span>';
+        if (i.pricePercentile5y != null) {
+          const p = i.pricePercentile5y;
+          const color = p < 20 ? 'var(--green)' : (p > 80 ? 'var(--red)' : 'var(--muted)');
+          altPctHtml = `<span style="color:${color};font-weight:600" title="近5年价格历史分位">${p.toFixed(1)}%</span>`;
+        }
+        let altMaHtml = '<span class="missing">-</span>';
+        if (i.devFromMa200 != null) {
+          const d = i.devFromMa200;
+          const sign = d > 0 ? '+' : '';
+          const color = d < 0 ? 'var(--green)' : (d > 0 ? 'var(--red)' : 'var(--muted)');
+          altMaHtml = `<span style="color:${color};font-weight:600" title="当前价相对200日均线偏离，负值表示低于均线">${sign}${d.toFixed(2)}%</span>`;
+        }
+        let altWeightHtml = '<span class="missing">-</span>';
+        if (i.targetWeight != null) {
+          const w = i.targetWeight;
+          const cls = w >= 8 ? 'color-green' : (w >= 6 ? 'color-yellow' : (w >= 5 ? 'color-gray' : 'color-red'));
+          const tag = w >= 8 ? '高配' : (w >= 6 ? '偏低' : (w >= 5 ? '标配' : '低配'));
+          altWeightHtml = `<span class="color-badge ${cls}" title="基于5年价格分位的建议配置占比">${w}% · ${tag}</span>`;
+        }
+
         html += `<tr${cls}>
           <td><span class="index-name">${i.name}</span>${badge}</td>
           ${isAlt ? `
           <td>${navHtml}</td>
-          <td>${i.priceDate || '-'}</td>
+          <td>${altPctHtml}</td>
+          <td>${altMaHtml}</td>
+          <td>${altWeightHtml}</td>
           <td class="suffix">${i.fundCode || '-'}</td>
           <td class="suffix">${i.fundFcode || '-'}</td>` : `
           <td>${navHtml}</td>
