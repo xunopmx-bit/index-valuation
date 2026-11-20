@@ -395,6 +395,7 @@ function renderContent() {
       '市盈率法': '盈利快速成长/宽基/消费医药 · 看PE历史百分位 · 低位可投',
       '市净率法': '强周期/重资产行业 · 看PB历史百分位 · 低估可投 · 单品种<总资产10%',
       '海外市场': '海外指数 · 市盈率法',
+      '另类资产': '商品/贵金属 · 无估值指标，仅跟踪收盘价与配置比例',
     };
 
     for (const sec of d.sections) {
@@ -467,7 +468,9 @@ function renderContent() {
           ? `<span class="nav-val" title="${i.priceType || '场内'}: ${i.priceCode || '-'} (更新: ${i.priceDate || '-'})">${Number(i.closePrice).toFixed(4)}</span><span class="price-type-tag">${i.priceType || '场内'}</span>`
           : '<span class="missing">-</span>';
 
-        let statusHtml = `<span class="color-badge color-${effColor}">${colorName}</span>`;
+        let statusHtml = i.section === '另类资产'
+          ? '<span class="color-badge color-gray">商品</span>'
+          : `<span class="color-badge color-${effColor}">${colorName}</span>`;
 
         html += `<tr${cls}>
           <td><span class="index-name">${i.name}</span>${badge}</td>

@@ -82,6 +82,11 @@ module.exports = {
     { index_code: "931187", method: "PE", section: "市盈率法", hold: true, name: "科技100", fundCode: "515580", fundFcode: "008399", source: "csindex" },
     { index_code: "930050", method: "PE", section: "市盈率法", hold: true, name: "中证A500", fundCode: "159338", fundFcode: "159338", source: "csindex" },
     { index_code: "000698", method: "PE", section: "市盈率法", hold: true, name: "科创100", fundCode: "588030", fundFcode: "588030", source: "csindex" },
+
+    // ============ 另类资产（商品类，无 PE/PB 估值，仅价格跟踪） ============
+    // 博时黄金ETF 159937：跟踪上金所 AU9999 黄金现货，2026-11-20 用户指示纳入持仓。
+    // method 用 PE 仅为占位（蛋卷无该标的 → raw=null → percentile/star=null、color=gray），前端只展示收盘价。
+    { index_code: "SZ159937", method: "PE", section: "另类资产", hold: true, name: "博时黄金ETF", fundCode: "159937" },
   ],
 
   // ============ 人民币债券估值表（银行螺丝钉专属固收板块） ============
